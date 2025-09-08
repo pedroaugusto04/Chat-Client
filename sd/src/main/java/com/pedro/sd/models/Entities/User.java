@@ -1,4 +1,4 @@
-package com.models.Entities;
+package com.pedro.sd.models.Entities;
 
 import java.util.List;
 

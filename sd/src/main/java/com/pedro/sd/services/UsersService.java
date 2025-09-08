@@ -1,9 +1,12 @@
-package com.pedro.services;
+package com.pedro.sd.services;
 
-import com.models.DTO.UserDTO;
-import com.models.Entities.User;
-import com.pedro.repositories.UsersRepository;
+import org.springframework.stereotype.Service;
 
+import com.pedro.sd.models.DTO.UserDTO;
+import com.pedro.sd.models.Entities.User;
+import com.pedro.sd.repositories.UsersRepository;
+
+@Service
 public class UsersService {
     
     private UsersRepository usersRepository;

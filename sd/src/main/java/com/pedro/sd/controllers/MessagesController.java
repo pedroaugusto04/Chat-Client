@@ -1,4 +1,4 @@
-package com.pedro.controllers;
+package com.pedro.sd.controllers;
 
 import java.util.Date;
 import java.util.List;
@@ -10,11 +10,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import com.models.DTO.MessageResponseDTO;
-import com.models.DTO.MessageSendDTO;
-import com.pedro.services.MessagesService;
+import com.pedro.sd.models.DTO.MessageResponseDTO;
+import com.pedro.sd.models.DTO.MessageSendDTO;
+import com.pedro.sd.services.MessagesService;
 
+@RestController
 public class MessagesController {
 
     private MessagesService messagesService;

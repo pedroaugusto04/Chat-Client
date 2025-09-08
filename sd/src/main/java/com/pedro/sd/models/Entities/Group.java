@@ -1,4 +1,4 @@
-package com.models.Entities;
+package com.pedro.sd.models.Entities;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -14,7 +14,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "groups")
+@Table(name = "`groups`")
 public class Group {
 
     @Id

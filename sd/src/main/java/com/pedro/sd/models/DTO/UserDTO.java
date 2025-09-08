@@ -1,4 +1,4 @@
-package com.models.DTO;
+package com.pedro.sd.models.DTO;
 
 public record UserDTO(String nickname) {
 }

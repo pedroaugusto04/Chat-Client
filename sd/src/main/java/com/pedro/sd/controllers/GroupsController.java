@@ -1,4 +1,4 @@
-package com.pedro.controllers;
+package com.pedro.sd.controllers;
 
 import java.util.List;
 
@@ -6,11 +6,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
 
-import com.models.DTO.GroupDTO;
-import com.models.Entities.Group;
-import com.pedro.services.GroupsService;
+import com.pedro.sd.models.DTO.GroupDTO;
+import com.pedro.sd.models.Entities.Group;
+import com.pedro.sd.services.GroupsService;
 
+@RestController
 public class GroupsController {
 
     private GroupsService groupsService;

@@ -1,9 +1,9 @@
-package com.pedro.repositories;
+package com.pedro.sd.repositories;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import com.models.Entities.Group;
+import com.pedro.sd.models.Entities.Group;
 
 
 @Repository

@@ -1,11 +1,14 @@
-package com.pedro.services;
+package com.pedro.sd.services;
 
 import java.util.List;
 
-import com.models.DTO.GroupDTO;
-import com.models.Entities.Group;
-import com.pedro.repositories.GroupsRepository;
+import org.springframework.stereotype.Service;
 
+import com.pedro.sd.models.DTO.GroupDTO;
+import com.pedro.sd.models.Entities.Group;
+import com.pedro.sd.repositories.GroupsRepository;
+
+@Service
 public class GroupsService {
     
     private GroupsRepository groupsRepository;

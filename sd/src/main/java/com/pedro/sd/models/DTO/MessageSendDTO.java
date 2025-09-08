@@ -1,4 +1,4 @@
-package com.models.DTO;
+package com.pedro.sd.models.DTO;
 
 import java.time.LocalDateTime;
 

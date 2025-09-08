@@ -1,12 +1,14 @@
-package com.pedro.controllers;
+package com.pedro.sd.controllers;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
 
-import com.models.DTO.UserDTO;
-import com.pedro.services.UsersService;
+import com.pedro.sd.models.DTO.UserDTO;
+import com.pedro.sd.services.UsersService;
 
+@RestController
 public class UsersController {
 
     private UsersService userService;
