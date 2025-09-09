@@ -21,7 +21,11 @@ public class UsersController {
     @PostMapping("/nick")
     public ResponseEntity<Void> createUser(@RequestBody UserDTO userDTO) {
 
+        this.logsService.log(userDTO, "CREATE_USER", "Entrou no endpoint para criacao de usuario");
+
         this.userService.createUser(userDTO);
+
+        this.logsService.log(userDTO, "CREATE_USER", "Usuario criado com sucesso");
 
         return ResponseEntity.ok().build();
     }

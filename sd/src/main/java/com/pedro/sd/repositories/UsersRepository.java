@@ -5,8 +5,10 @@ import org.springframework.stereotype.Repository;
 
 import com.pedro.sd.models.Entities.User;
 
+import java.util.Optional;
+
 
 @Repository
 public interface UsersRepository extends JpaRepository<User, Integer> {
-
+    Optional<User> findByNickname(String nickname);
 }

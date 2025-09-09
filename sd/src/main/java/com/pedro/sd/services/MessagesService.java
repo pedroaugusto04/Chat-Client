@@ -31,13 +31,20 @@ public class MessagesService {
 
     public void sendMessage(Integer groupId, MessageSendDTO messageDTO) {
 
-        User user = this.usersService.getUser(messageDTO.userId());
+        Message processedMessage = this.messagesRepository.findByIdemKey(messageDTO.idemKey()).orElse(null);
+
+        // caso a mensagem com mesma chave de idempotencia ja tenha sido processada, nao processa novamente
+        if (processedMessage != null) return;
+
+        User user = this.usersService.getUserByNickname(messageDTO.userNickname());
 
         Group group = this.groupsService.getGroup(groupId);
 
-        Message message = new Message(messageDTO.text(), user, group);
+        Message message = new Message(messageDTO.text(), user, group, messageDTO.idemKey(), messageDTO.timestampClient());
 
         this.messagesRepository.save(message);
+
+        this.usersService.updateUserLastActivity(user, messageDTO.timestampClient());
     }
 
     public List<MessageResponseDTO> getMessages(Integer groupId, Date since, Integer limit) {
@@ -52,13 +59,13 @@ public class MessagesService {
                     sinceDateTime,
                     PageRequest.of(0, limit));
         } else {
-            messages = messagesRepository.findByGroupOrderByDateDesc(
+            messages = messagesRepository.findByGroupOrderByDateAsc(
                     group,
                     PageRequest.of(0, limit));
         }
 
        return messages.stream()
-        .map(m -> new MessageResponseDTO(m.getText(), m.getUser().getId(), m.getDate()))
+        .map(m -> new MessageResponseDTO(m.getText(), m.getUser().getId(), m.getUser().getNickname(),m.getDate()))
         .collect(Collectors.toList());
 
     }

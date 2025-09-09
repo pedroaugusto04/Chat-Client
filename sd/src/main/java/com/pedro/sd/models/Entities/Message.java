@@ -23,6 +23,9 @@ public class Message {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String text;
 
+    @Column(name = "idem_key",nullable = false)
+    private String idemKey;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "fk_user", nullable = false)
     private User user;
@@ -36,10 +39,12 @@ public class Message {
 
     public Message() {}
 
-    public Message(String text, User user, Group group) {
+    public Message(String text, User user, Group group, String idemKey, LocalDateTime date) {
         this.text = text;
         this.user = user;
         this.group = group;
+        this.idemKey = idemKey;
+        this.date = date;
     }
 
     public Integer getId() {
@@ -80,5 +85,13 @@ public class Message {
 
     public void setDate(LocalDateTime date) {
         this.date = date;
+    }
+
+    public String getIdemKey() {
+        return idemKey;
+    }
+
+    public void setIdemKey(String idemKey) {
+        this.idemKey = idemKey;
     }
 }

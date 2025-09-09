@@ -1,5 +1,7 @@
+import threading
+import time
 import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext
+from tkinter import ttk, messagebox, scrolledtext, simpledialog
 import requests
 from datetime import datetime
 import uuid
@@ -10,20 +12,20 @@ class ChatClient:
     def __init__(self):
         self.session = requests.Session()
         self.session.headers.update({"Content-Type": "application/json"})
+        self.pending_messages = {}
+        self.retry_loop(interval=60)
 
-    def create_user(self, name: str):
+    def create_user(self, nickname: str):
         url = f"{BASE_URL}/nick"
-        payload = {"name": name}
+        payload = {"nickname": nickname, "timestampClient": datetime.now().isoformat()}
         response = self.session.post(url, json=payload)
         response.raise_for_status()
-        return response.json()
 
     def create_group(self, name: str):
         url = f"{BASE_URL}/groups"
-        payload = {"name": name}  # corresponde ao GroupDTO do backend
+        payload = {"name": name}
         response = self.session.post(url, json=payload)
         response.raise_for_status()
-        return response.json()
 
     def list_groups(self):
         url = f"{BASE_URL}/groups"
@@ -31,15 +33,24 @@ class ChatClient:
         response.raise_for_status()
         return response.json()
 
-    def send_message(self, group_id: int, text: str):
+    def send_message(self, idemKey: str, group_id: int, text: str, nickname: str):
         url = f"{BASE_URL}/groups/{group_id}/messages"
+
+        idemKey = idemKey
         payload = {
-            "idemKey": str(uuid.uuid4()),
+            "idemKey": idemKey,
             "text": text,
-            "timestamp_client": datetime.now().isoformat()
+            "userNickname": nickname,
+            "timestampClient": datetime.now().isoformat()
         }
-        response = self.session.post(url, json=payload)
-        response.raise_for_status()
+        try:
+            response = self.session.post(url, json=payload)
+            response.raise_for_status()
+            if idemKey in self.pending_messages:
+                del self.pending_messages[idemKey]
+        except Exception as e:
+            self.pending_messages[idemKey] = (group_id, text, nickname)
+
 
     def get_messages(self, group_id: int, limit=50):
         url = f"{BASE_URL}/groups/{group_id}/messages"
@@ -49,6 +60,23 @@ class ChatClient:
         return response.json()
 
 
+    def retry_loop(self, interval=60):
+        def loop():
+            while True:
+                time.sleep(interval)
+                self.retry_pending_messages()
+
+        threading.Thread(target=loop, daemon=True).start()
+
+    def retry_pending_messages(self):
+        for idemKey in list(self.pending_messages.keys()):
+            group_id, text, nickname = self.pending_messages[idemKey]
+            try:
+                self.send_message(idemKey,group_id, text, nickname)
+            except Exception:
+                pass
+
+
 class ChatGUI(tk.Tk):
     def __init__(self, client):
         super().__init__()
@@ -56,28 +84,21 @@ class ChatGUI(tk.Tk):
         self.title("Chat Client")
         self.geometry("600x500")
 
-        self.user_name = tk.StringVar()
         self.group_name = tk.StringVar()
         self.selected_group = None
+        self.nickname = None  # será definido quando o usuário entrar no grupo
 
         self.create_widgets()
         self.groups = []
         self.refresh_groups()
 
     def create_widgets(self):
-        # Usuario
-        user_frame = ttk.Frame(self)
-        user_frame.pack(pady=5)
-        ttk.Label(user_frame, text="Nome do usuário:").pack(side=tk.LEFT)
-        ttk.Entry(user_frame, textvariable=self.user_name).pack(side=tk.LEFT)
-        ttk.Button(user_frame, text="Criar usuário", command=self.create_user).pack(side=tk.LEFT)
 
         group_frame = ttk.Frame(self)
         group_frame.pack(pady=5)
         ttk.Label(group_frame, text="Nome do grupo:").pack(side=tk.LEFT)
         ttk.Entry(group_frame, textvariable=self.group_name).pack(side=tk.LEFT)
         ttk.Button(group_frame, text="Criar grupo", command=self.create_group).pack(side=tk.LEFT)
-        ttk.Button(group_frame, text="Atualizar grupos", command=self.refresh_groups).pack(side=tk.LEFT)
 
         self.groups_list = tk.Listbox(self, height=5)
         self.groups_list.pack(fill=tk.X, padx=10)
@@ -92,26 +113,17 @@ class ChatGUI(tk.Tk):
         self.msg_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
         ttk.Button(msg_frame, text="Enviar", command=self.send_message).pack(side=tk.LEFT)
 
-        ttk.Button(self, text="Atualizar mensagens", command=self.refresh_messages).pack(pady=5)
-
-    def create_user(self):
-        try:
-            user = self.client.create_user(self.user_name.get())
-            messagebox.showinfo("Sucesso", f"Usuário criado: {user}")
-        except Exception as e:
-            messagebox.showerror("Erro", str(e))
-
     def create_group(self):
         group_name = self.group_name.get().strip()
         if not group_name:
             messagebox.showwarning("Aviso", "Digite um nome para o grupo")
             return
         try:
-            group = self.client.create_group(group_name)
+            self.client.create_group(group_name)
             messagebox.showinfo("Sucesso", f"Grupo criado: {group_name}")
             self.refresh_groups()
         except Exception as e:
-            messagebox.showerror("Erro", str(e))
+            messagebox.showerror("Erro", "Já existe um grupo com o nome informado")
 
     def refresh_groups(self):
         try:
@@ -127,17 +139,35 @@ class ChatGUI(tk.Tk):
         if selection:
             index = selection[0]
             self.selected_group = self.groups[index]
+
+            if not self.nickname:
+                self.nickname = simpledialog.askstring("Nickname", "Digite seu nickname:")
+                if not self.nickname:
+                    messagebox.showwarning("Aviso", "Você precisa informar um nickname para entrar no grupo")
+                    self.selected_group = None
+                    return
+                try:
+                    self.client.create_user(self.nickname)
+                except Exception as e:
+                    messagebox.showerror("Erro", str(e))
+                    self.selected_group = None
+                    return
+
             self.refresh_messages()
 
     def send_message(self):
         if not self.selected_group:
             messagebox.showwarning("Aviso", "Selecione um grupo primeiro")
             return
+        if not self.nickname:
+            messagebox.showwarning("Aviso", "Digite seu nickname antes de enviar mensagens")
+            return
+
         text = self.msg_entry.get()
         if not text:
             return
         try:
-            self.client.send_message(self.selected_group['id'], text)
+            self.client.send_message(str(uuid.uuid4()), self.selected_group['id'], text, self.nickname)
             self.msg_entry.delete(0, tk.END)
             self.refresh_messages()
         except Exception as e:
@@ -147,17 +177,19 @@ class ChatGUI(tk.Tk):
         if not self.selected_group:
             return
         try:
-            messages = self.client.get_messages(self.selected_group['id'], limit=50)
+            messages = self.client.get_messages(self.selected_group['id'], limit=10)
             self.chat_area.config(state='normal')
             self.chat_area.delete(1.0, tk.END)
             for m in messages:
-                ts = m['timestamp_client']
-                text = m['text']
-                user_id = m.get('userId', 'unknown')
-                self.chat_area.insert(tk.END, f"[{ts}] User {user_id}: {text}\n")
+                ts = m.get('timestampClient', '??')
+                text = m.get('text', '')
+                user_nick = m.get('userNickname', 'anonymous')
+                self.chat_area.insert(tk.END, f"[{ts}] {user_nick}: {text}\n")
             self.chat_area.config(state='disabled')
         except Exception as e:
             messagebox.showerror("Erro", str(e))
+
+
 
 
 if __name__ == "__main__":

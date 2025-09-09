@@ -10,6 +10,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
@@ -25,10 +26,14 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Message> messages;
 
+    @Column(name="last_activity")
+    private LocalDateTime timestampClient;
+
     public User() {}
 
-    public User(String nickname) {
+    public User(String nickname, LocalDateTime timestampClient) {
         this.nickname = nickname;
+        this.timestampClient = timestampClient;
     }
 
     public Integer getId() {
@@ -53,5 +58,13 @@ public class User {
 
     public void setMessages(List<Message> messages) {
         this.messages = messages;
+    }
+
+    public LocalDateTime getTimestampClient() {
+        return timestampClient;
+    }
+
+    public void setTimestampClient(LocalDateTime timestampClient) {
+        this.timestampClient = timestampClient;
     }
 }

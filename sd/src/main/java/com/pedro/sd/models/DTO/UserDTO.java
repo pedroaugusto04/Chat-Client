@@ -1,4 +1,6 @@
 package com.pedro.sd.models.DTO;
 
-public record UserDTO(String nickname) {
+import java.time.LocalDateTime;
+
+public record UserDTO(String nickname, LocalDateTime timestampClient) {
 }
