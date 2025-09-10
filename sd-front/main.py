@@ -1,10 +1,10 @@
 import threading
-import time
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext, simpledialog
 import requests
 from datetime import datetime
 import uuid
+import random
 
 BASE_URL = "http://localhost:8080"
 
@@ -13,7 +13,7 @@ class ChatClient:
         self.session = requests.Session()
         self.session.headers.update({"Content-Type": "application/json"})
         self.pending_messages = {}
-        self.retry_loop(interval=60)
+        self.base_interval = 5
 
     def create_user(self, nickname: str):
         url = f"{BASE_URL}/nick"
@@ -33,7 +33,11 @@ class ChatClient:
         response.raise_for_status()
         return response.json()
 
-    def send_message(self, idemKey: str, group_id: int, text: str, nickname: str):
+    def send_message(self, idemKey: str, group_id: int, text: str, nickname: str, isRetry: bool = False, messageInterval: int | None = None):
+
+        if messageInterval is None:
+            messageInterval = self.base_interval
+
         url = f"{BASE_URL}/groups/{group_id}/messages"
 
         idemKey = idemKey
@@ -41,15 +45,17 @@ class ChatClient:
             "idemKey": idemKey,
             "text": text,
             "userNickname": nickname,
-            "timestampClient": datetime.now().isoformat()
+            "timestampClient": datetime.now().isoformat(),
+            "isRetry": isRetry
         }
-        try:
-            response = self.session.post(url, json=payload)
-            response.raise_for_status()
-            if idemKey in self.pending_messages:
-                del self.pending_messages[idemKey]
-        except Exception as e:
-            self.pending_messages[idemKey] = (group_id, text, nickname)
+
+        self.pending_messages[idemKey] = (group_id, text, nickname, messageInterval)
+
+        response = self.session.post(url, json=payload)
+        response.raise_for_status()
+
+        if idemKey in self.pending_messages:
+            del self.pending_messages[idemKey]
 
 
     def get_messages(self, group_id: int, limit=50):
@@ -59,22 +65,28 @@ class ChatClient:
         response.raise_for_status()
         return response.json()
 
-
-    def retry_loop(self, interval=60):
+    def retry_loop(self):
         def loop():
-            while True:
-                time.sleep(interval)
-                self.retry_pending_messages()
+            self.retry_pending_messages()
+            # agenda cada execucao de 10 em 10 segundos
+            threading.Timer(10, loop).start()
+        loop()
 
         threading.Thread(target=loop, daemon=True).start()
 
     def retry_pending_messages(self):
         for idemKey in list(self.pending_messages.keys()):
-            group_id, text, nickname = self.pending_messages[idemKey]
+            group_id, text, nickname, interval = self.pending_messages[idemKey]
             try:
-                self.send_message(idemKey,group_id, text, nickname)
+                self.send_message(idemKey,group_id, text, nickname,True, interval)
             except Exception:
-                pass
+                new_interval = interval * 2 # backoff
+                new_interval = random.uniform(0.5 * new_interval, 1.5 * new_interval) # jitter
+                # limita em 10 minutos
+                new_interval = min(new_interval,600)
+
+                threading.Timer(new_interval, self.send_message,
+                                args=(idemKey, group_id, text, nickname, True, new_interval)).start()
 
 
 class ChatGUI(tk.Tk):
@@ -167,7 +179,10 @@ class ChatGUI(tk.Tk):
         if not text:
             return
         try:
-            self.client.send_message(str(uuid.uuid4()), self.selected_group['id'], text, self.nickname)
+            # forma chave de idempotencia com uuid,groupId,text,nickname
+            idem_key = str(uuid.uuid4()) + "_" + str(self.selected_group['id']) + "_" + text + "_" + self.nickname
+
+            self.client.send_message(idem_key, self.selected_group['id'], text, self.nickname,False)
             self.msg_entry.delete(0, tk.END)
             self.refresh_messages()
         except Exception as e:
@@ -194,5 +209,6 @@ class ChatGUI(tk.Tk):
 
 if __name__ == "__main__":
     client = ChatClient()
+    client.retry_loop()
     app = ChatGUI(client)
     app.mainloop()
