@@ -1,29 +1,28 @@
 package com.pedro.sd.services;
 
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.Date;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.springframework.data.domain.PageRequest;
-import org.springframework.stereotype.Service;
-
 import com.pedro.sd.models.DTO.MessageResponseDTO;
 import com.pedro.sd.models.DTO.MessageSendDTO;
 import com.pedro.sd.models.Entities.Group;
 import com.pedro.sd.models.Entities.Message;
 import com.pedro.sd.models.Entities.User;
 import com.pedro.sd.repositories.MessagesRepository;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class MessagesService {
 
     private MessagesRepository messagesRepository;
-    private UsersService usersService;
-    private GroupsService groupsService;
+    private com.pedro.sd.services.UsersService usersService;
+    private com.pedro.sd.services.GroupsService groupsService;
 
-    MessagesService(UsersService usersService, GroupsService groupsService, MessagesRepository messagesRepository) {
+    MessagesService(com.pedro.sd.services.UsersService usersService, com.pedro.sd.services.GroupsService groupsService, MessagesRepository messagesRepository) {
         this.messagesRepository = messagesRepository;
         this.usersService = usersService;
         this.groupsService = groupsService;
@@ -33,7 +32,8 @@ public class MessagesService {
 
         Message processedMessage = this.messagesRepository.findByIdemKey(messageDTO.idemKey()).orElse(null);
 
-        // caso a mensagem com mesma chave de idempotencia ja tenha sido processada, nao processa novamente
+        /* caso a mensagem com mesma chave de idempotencia ja tenha sido processada, nao processa novamente
+        */
         if (processedMessage != null) return;
 
         User user = this.usersService.getUserByNickname(messageDTO.userNickname());

@@ -33,11 +33,15 @@ public class MessagesController {
     @PostMapping("/groups/{groupId}/messages")
     public ResponseEntity<Void> sendMessage(@PathVariable("groupId") Integer groupId, @RequestBody MessageSendDTO messageDTO) {
 
+        long startTime = System.currentTimeMillis();
+
         this.logsService.log(messageDTO, "SEND_MESSAGE", "Entrou no endpoint para envio de mensagem");
 
         this.messagesService.sendMessage(groupId, messageDTO);
 
-        this.logsService.log(messageDTO,"SEND_MESSAGE","Mensagem enviada com sucesso");
+        long latency = System.currentTimeMillis() - startTime;
+
+        this.logsService.log(messageDTO, "SEND_MESSAGE", "Mensagem enviada com sucesso em " + latency + " ms");
 
         return ResponseEntity.ok().build();
     }
@@ -49,11 +53,15 @@ public class MessagesController {
             @RequestParam(value = "since", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Date since,
             @RequestParam(value = "limit", defaultValue = "10") Integer limit) {
 
+        long startTime = System.currentTimeMillis();
+
         this.logsService.log(groupId, "GET_MESSAGES", "Entrou no endpoint para recuperacao de mensagens do grupo");
 
         List<MessageResponseDTO> messages = messagesService.getMessages(groupId, since, limit);
 
-        this.logsService.log(messages, "GET_MESSAGES", "Recuperou com sucesso as mensagens do grupo" + " " + groupId);
+        long latency = System.currentTimeMillis() - startTime;
+
+        this.logsService.log(messages, "GET_MESSAGES", "Recuperou com sucesso as mensagens do grupo " + groupId + " em " + latency + " ms");
 
         return ResponseEntity.ok(messages);
     }
