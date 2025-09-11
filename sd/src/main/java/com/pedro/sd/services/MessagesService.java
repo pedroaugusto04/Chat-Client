@@ -21,11 +21,14 @@ public class MessagesService {
     private MessagesRepository messagesRepository;
     private com.pedro.sd.services.UsersService usersService;
     private com.pedro.sd.services.GroupsService groupsService;
+    private LogsService logsService;
 
-    MessagesService(com.pedro.sd.services.UsersService usersService, com.pedro.sd.services.GroupsService groupsService, MessagesRepository messagesRepository) {
+    MessagesService(com.pedro.sd.services.UsersService usersService, com.pedro.sd.services.GroupsService groupsService, MessagesRepository messagesRepository,
+                    LogsService logsService) {
         this.messagesRepository = messagesRepository;
         this.usersService = usersService;
         this.groupsService = groupsService;
+        this.logsService = logsService;
     }
 
     public void sendMessage(Integer groupId, MessageSendDTO messageDTO) {
@@ -34,7 +37,10 @@ public class MessagesService {
 
         /* caso a mensagem com mesma chave de idempotencia ja tenha sido processada, nao processa novamente
         */
-        if (processedMessage != null) return;
+        if (processedMessage != null) {
+            this.logsService.log(messageDTO, "MESSAGE_ALREADY_PROCESSED", "Mensagem ja processada");
+            return;
+        }
 
         User user = this.usersService.getUserByNickname(messageDTO.userNickname());
 
@@ -65,7 +71,7 @@ public class MessagesService {
         }
 
        return messages.stream()
-        .map(m -> new MessageResponseDTO(m.getText(), m.getUser().getId(), m.getUser().getNickname(),m.getDate()))
+        .map(m -> new MessageResponseDTO(m.getIdemKey(),m.getText(), m.getUser().getId(), m.getUser().getNickname(),m.getDate()))
         .collect(Collectors.toList());
 
     }
