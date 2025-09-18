@@ -32,22 +32,6 @@ public class MessagesController {
         this.messagingTemplate = messagingTemplate;
     }
 
-    @PostMapping("/groups/{groupId}/messages")
-    public ResponseEntity<Void> sendMessage(@PathVariable("groupId") Integer groupId, @RequestBody MessageSendDTO messageDTO) {
-
-        long startTime = System.currentTimeMillis();
-
-        this.logsService.log(messageDTO, "SEND_MESSAGE", "Entrou no endpoint para envio de mensagem");
-
-        this.messagesService.sendMessage(groupId, messageDTO);
-
-        long latency = System.currentTimeMillis() - startTime;
-
-        this.logsService.log(messageDTO, "SEND_MESSAGE", "Mensagem enviada com sucesso em " + latency + " ms");
-
-        return ResponseEntity.ok().build();
-    }
-
     @GetMapping("groups/{id}/messages")
     public ResponseEntity<List<MessageResponseDTO>> getLastMessages(
 
@@ -74,12 +58,10 @@ public class MessagesController {
         this.logsService.log(userDTO, "GROUP_CONNECT", userDTO.nickname() + " conectou no grupo WEB SOCKET " + groupId);
     }
 
-    @MessageMapping("/chat/{groupId}/send")
-    public void sendMessageWS(
-            @DestinationVariable Integer groupId,
-            MessageSendDTO messageDTO
-    ) throws InterruptedException {
-        
+    @PostMapping("/chat/{groupId}/messages")
+    public void sendMessageWS(@PathVariable Integer groupId, @RequestBody MessageSendDTO messageDTO
+    ) {
+
         this.logsService.log(messageDTO, "SEND_MESSAGE_WS", "Entrou no endpoint WS para envio de mensagem");
 
         long startTime = System.currentTimeMillis();
