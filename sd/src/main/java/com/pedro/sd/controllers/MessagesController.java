@@ -74,7 +74,7 @@ public class MessagesController {
 
         // envia pra todos do grupo ( somente apos salvar no banco )
         messagingTemplate.convertAndSend("/topic/messages." + groupId,
-                new MessageResponseDTO(messageDTO.idemKey(),messageDTO.text(), null, messageDTO.userNickname(), messageDTO.timestampClient()));
+                new MessageResponseDTO(messageDTO.idemKey(),messageDTO.text(), null, messageDTO.userNickname(), messageDTO.timestampClient(), messageDTO.sentTime()));
 
         // confirma o processamento da mensagem
         String userNickname = messageDTO.userNickname();

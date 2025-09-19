@@ -1,4 +1,4 @@
-#!/home/pedroduarte/Documents/GitHub/SD-2025/sd-front/my_venv/bin/python3
+#!/home/pedroduarte/Documents/GitHub/SD-2025/sd-front/my_venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys

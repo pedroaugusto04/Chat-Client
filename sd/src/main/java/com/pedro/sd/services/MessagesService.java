@@ -60,18 +60,18 @@ public class MessagesService {
 
         if (since != null) {
             LocalDateTime sinceDateTime = LocalDateTime.ofInstant(since.toInstant(), ZoneId.systemDefault());
-            messages = messagesRepository.findByGroupAndDateAfterOrderByDateAsc(
+            messages = messagesRepository.findByGroupAndDateAfterOrderByDateDesc(
                     group,
                     sinceDateTime,
                     PageRequest.of(0, limit));
         } else {
-            messages = messagesRepository.findByGroupOrderByDateAsc(
+            messages = messagesRepository.findByGroupOrderByDateDesc(
                     group,
                     PageRequest.of(0, limit));
         }
 
        return messages.stream()
-        .map(m -> new MessageResponseDTO(m.getIdemKey(),m.getText(), m.getUser().getId(), m.getUser().getNickname(),m.getDate()))
+        .map(m -> new MessageResponseDTO(m.getIdemKey(),m.getText(), m.getUser().getId(), m.getUser().getNickname(),m.getDate(),null))
         .collect(Collectors.toList());
 
     }

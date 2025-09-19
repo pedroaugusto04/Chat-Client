@@ -1,12 +1,14 @@
 import random
 import threading
+import time
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext, simpledialog
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 import json
 import websocket
+import numpy as np
 
 BASE_URL = "http://localhost:8080"
 WS_URL = "ws://localhost:8080/chat"
@@ -29,6 +31,52 @@ class ChatClient:
         self.initial_group_id = None
 
         self.base_interval = 5
+
+        # mede o tempo de recebimento das mensagens
+        self.received_messages_timestamps = []
+
+    def get_throughput(self, interval_seconds=60):
+        # calcula a vazao de mensagens no ultimo minuto
+        now = datetime.now()
+        cutoff = now - timedelta(seconds=interval_seconds)
+        recent_msgs = [ts for ts in self.received_messages_timestamps if ts >= cutoff]
+        return len(recent_msgs) * (60 / interval_seconds)
+
+    def spam_messages(self):
+
+        # cria grupo teste_vazao e usuario admin para realizar o envio das mensagens automaticamente
+        # utilizado pra testar throughput
+
+        group_id = None
+        nickname = "admin"
+
+        groups = self.list_groups()
+        for g in groups:
+            if g['name'] == "teste_vazao":
+                group_id = g['id']
+                break
+
+        if not group_id:
+            self.create_group("teste_vazao")
+            groups = self.list_groups()
+            for g in groups:
+                if g['name'] == "teste_vazao":
+                    group_id = g['id']
+                    break
+
+        try:
+            self.create_user(nickname)
+        except:
+            pass
+
+
+        # inicia spam de mensagens
+        num_send = 50
+        def send_one_message():
+            self.send_message(str(uuid.uuid4()), group_id, "TESTE VAZÃO", nickname)
+            time.sleep(0.1)
+        for _ in range(num_send):
+            threading.Thread(target=send_one_message, daemon=True).start()
 
     def _on_open(self, ws):
         self.connected = True
@@ -64,7 +112,7 @@ class ChatClient:
 
         if command == "CONNECTED":
             if self.gui:
-                self.gui.refresh_groups()
+                self.gui.after(0,self.gui.refresh_groups)
             if self.initial_nickname:
                 self.subscribe(f"/topic/acks.{self.initial_nickname}", self._on_ack_message)
             if self.initial_group_id:
@@ -129,14 +177,16 @@ class ChatClient:
         self.stomp_transmit("UNSUBSCRIBE", headers)
 
     def _switch_group_subscription(self, group_id, nickname):
-        if self.current_group_sub_id and self.connected:
+        if not self.current_group_sub_id:
+            self.current_group_sub_id = self.subscribe(f"/topic/messages.{group_id}", self._on_group_message)
+        if self.current_group_sub_id != group_id:
             self.unsubscribe(self.current_group_sub_id)
-
-        self.current_group_sub_id = self.subscribe(f"/topic/messages.{group_id}", self._on_group_message)
+            self.current_group_sub_id = self.subscribe(f"/topic/messages.{group_id}", self._on_group_message)
 
         payload = {"nickname": nickname, "timestampClient": datetime.now().isoformat()}
         destination = f"/app/chat/{group_id}"
         headers = {"destination": destination, "content-type": "application/json"}
+
         self.stomp_transmit("SEND", headers, json.dumps(payload))
 
     def _on_group_message(self, body):
@@ -151,10 +201,14 @@ class ChatClient:
             "timestampClient": data.get("timestampClient")
         }
 
+        self.received_messages_timestamps.append(datetime.now())
+
         self.gui.messages.append(msg)
         if idemKey and idemKey in self.pending_messages:
             del self.pending_messages[idemKey]
-        self.gui.refresh_messages()
+
+        if self.gui:
+            self.gui.after(0, self.gui.refresh_messages,False)
 
     def _on_ack_message(self, body):
         pass
@@ -170,37 +224,58 @@ class ChatClient:
             payload, interval, group_id = self.pending_messages[idemKey]
             text, nickname = payload['text'], payload['userNickname']
             try:
-                self.send_message(idemKey, group_id, text, nickname, True, interval)
+                self.send_message(idemKey, group_id, text, nickname,True, interval, payload['timestampClient'])
             except Exception:
                 new_interval = min(interval * 2 * random.uniform(0.5, 1.5), 600)
                 threading.Timer(new_interval, self.send_message,
-                                args=(idemKey, group_id, text, nickname, True, new_interval)).start()
+                                args=(idemKey, group_id, text, nickname, True, new_interval, payload['timestampClient'])).start()
 
-    def send_message(self, idemKey, group_id, text, nickname, isRetry=False, messageInterval=None):
+    def send_message(self, idemKey, group_id, text, nickname, isRetry=False, messageInterval=None, timestampClient=None):
         if messageInterval is None:
             messageInterval = self.base_interval
         payload = {
-            "idemKey": idemKey, "text": text, "userNickname": nickname,
-            "timestampClient": datetime.now().isoformat(), "isRetry": isRetry
+            "idemKey": idemKey,
+            "text": text,
+            "userNickname": nickname,
+            "timestampClient": timestampClient if timestampClient else datetime.now().isoformat(),
+            "isRetry": isRetry,
+            "sentTime": datetime.now().isoformat()
         }
         self.pending_messages[idemKey] = (payload, messageInterval, group_id)
         self._switch_group_subscription(group_id, nickname)
-        self.gui.refresh_messages()
+
+        if self.gui:
+            self.gui.after(0, self.gui.refresh_messages,False)
 
         def send_async():
             try:
                 url = f"{BASE_URL}/chat/{group_id}/messages"
                 self.session.post(url, json=payload)
             except:
-                if self.gui:
-                    self.gui.after(0, lambda: show_msg_warning(self, self.gui, "Erro", "Falha ao enviar mensagem"))
+                pass
 
         threading.Thread(target=send_async, daemon=True).start()
 
-    def retry_loop(self):
+    def retry_loop(self, test_throughput: bool = False):
         def loop():
+            nonlocal test_throughput
+            if test_throughput:
+                spamMessages = True
+                test_throughput = False
+            else:
+                spamMessages = False
+
             self.connect_user()
             self.retry_pending_messages()
+
+            # calcula e imprime a vazao (mensagens/minuto)
+
+            if spamMessages:
+                client.spam_messages()
+
+            throughput = self.get_throughput(60)
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Vazão: {throughput:.2f} msg/min")
+
             threading.Timer(10, loop).start()
         loop()
 
@@ -220,7 +295,7 @@ class ChatClient:
         response.raise_for_status()
         return response.json()
 
-    def get_messages(self, group_id, limit=50):
+    def get_messages(self, group_id, limit=10):
         url = f"{BASE_URL}/groups/{group_id}/messages"
         response = self.session.get(url, params={"limit": limit})
         response.raise_for_status()
@@ -269,9 +344,10 @@ class ChatGUI(tk.Tk):
         try:
             self.client.create_group(group_name)
             messagebox.showinfo("Success", f"Grupo criado: {group_name}")
-            self.refresh_groups()
         except:
-            show_msg_warning(self.client, self, "Erro", "Grupo já existe")
+            messagebox.showwarning("Erro","Grupo já existe")
+
+        self.after(0, self.refresh_groups)
 
     def refresh_groups(self):
         try:
@@ -280,7 +356,7 @@ class ChatGUI(tk.Tk):
             for g in self.groups:
                 self.groups_list.insert(tk.END, f"{g['id']} - {g['name']}")
         except:
-            show_msg_warning(self.client, self, "Erro", "Não foi possível recuperar os grupos")
+            messagebox.showwarning("Erro","Não foi possível recuperar os grupos")
 
     def on_group_select(self, event):
         selection = event.widget.curselection()
@@ -298,9 +374,10 @@ class ChatGUI(tk.Tk):
         try:
             self.client.create_user(self.nickname)
             self.client._switch_group_subscription(self.selected_group['id'], self.nickname)
-            self.refresh_messages(True)
+
+            self.after(0, self.refresh_messages, True)
         except:
-            show_msg_warning(self.client, self, "Erro", "Não foi possível entrar no grupo")
+            messagebox.showwarning("Erro","Não foi possível entrar no grupo")
             self.selected_group = None
 
 
@@ -312,21 +389,29 @@ class ChatGUI(tk.Tk):
             self.client.send_message(str(uuid.uuid4()), self.selected_group['id'], text, self.nickname)
             self.msg_entry.delete(0, tk.END)
         except:
-            show_msg_warning(self.client, self, "Erro", "Não foi possível enviar mensagem")
+            messagebox.showwarning("Erro","Não foi possível enviar mensagem")
 
     def refresh_messages(self, initialLoad=False):
         if not self.selected_group: return
         try:
             if initialLoad:
-                self.messages = self.client.get_messages(self.selected_group['id'], limit=50)
+                self.messages = self.client.get_messages(self.selected_group['id'], limit=10)
 
             server_idem_keys = {m.get('idemKey') for m in self.messages}
+
+            # exibe as 10 ultimas confirmadas pelo servidor + as pendentes
+
             all_messages = list(self.messages)
+            all_messages.sort(key=lambda m: m.get('timestampClient', ''))
+
+            all_messages = all_messages[-10:]
+
             for payload, _, group_id in self.client.pending_messages.values():
                 if group_id == self.selected_group['id'] and payload['idemKey'] not in server_idem_keys:
                     all_messages.append(payload)
 
             all_messages.sort(key=lambda m: m.get('timestampClient', ''))
+
             self.chat_area.config(state='normal')
             self.chat_area.delete(1.0, tk.END)
             self.chat_area.tag_configure("pending", foreground="orange")
@@ -342,7 +427,7 @@ class ChatGUI(tk.Tk):
             self.chat_area.config(state='disabled')
             self.chat_area.yview(tk.END)
         except:
-            show_msg_warning(self.client, self, "Erro", "Não foi possível recuperar mensagens")
+            messagebox.showwarning("Erro","Não foi possível recuperar mensagens")
 
     def show_reconnect_modal(self):
         if self.reconnect_popup: return
@@ -376,5 +461,10 @@ if __name__ == "__main__":
     app = ChatGUI(client)
     client.gui = app
     client.connect_user()
-    client.retry_loop()
+
+    def start_test_throughput():
+        test_throughput = messagebox.askyesno("Teste de Throughput", "Deseja testar o Throughput (spam automatico de mensagens) ?")
+        client.retry_loop(test_throughput)
+
+    app.after(100, start_test_throughput)
     app.mainloop()
