@@ -32,8 +32,11 @@ class ChatClient:
 
         self.base_interval = 5
 
-        # mede o tempo de recebimento das mensagens
+        # mede o tempo de recebimento das mensagens para throughput ( >= 100 msg / min )
         self.received_messages_timestamps = []
+
+        # mede a latencia das requisicoes ( P95 <= 150ms )
+        self.latencies = []
 
     def get_throughput(self, interval_seconds=60):
         # calcula a vazao de mensagens no ultimo minuto
@@ -41,6 +44,11 @@ class ChatClient:
         cutoff = now - timedelta(seconds=interval_seconds)
         recent_msgs = [ts for ts in self.received_messages_timestamps if ts >= cutoff]
         return len(recent_msgs) * (60 / interval_seconds)
+
+    def get_latency_p95(self):
+        if not self.latencies:
+            return 0.0
+        return np.percentile(self.latencies, 95)
 
     def spam_messages(self):
 
@@ -136,6 +144,17 @@ class ChatClient:
             sub_id = headers.get('subscription')
             if sub_id in self.subscriptions:
                 self.subscriptions[sub_id](body)
+
+            try:
+                data = json.loads(body)
+                idemKey = data.get("idemKey")
+                sentTimeClient = data.get("sentTime") # tempo em que a mensagem foi enviada
+                if sentTimeClient:
+                    sentTimeClient = datetime.fromisoformat(sentTimeClient)
+                    latency_ms = (datetime.now() - sentTimeClient).total_seconds() * 1000
+                    self.latencies.append(latency_ms)
+            except Exception:
+                pass
 
         elif command == "ERROR":
             self._on_ws_error(body)
@@ -270,12 +289,12 @@ class ChatClient:
 
         threading.Thread(target=send_async, daemon=True).start()
 
-    def retry_loop(self, test_throughput: bool = False):
+    def retry_loop(self, test_benchmark: bool = False):
         def loop():
-            nonlocal test_throughput
-            if test_throughput:
+            nonlocal test_benchmark
+            if test_benchmark:
                 spamMessages = True
-                test_throughput = False
+                test_benchmark = False
             else:
                 spamMessages = False
 
@@ -288,7 +307,9 @@ class ChatClient:
                 client.spam_messages()
 
             throughput = self.get_throughput(60)
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Vazão: {throughput:.2f} msg/min")
+            p95_latency = self.get_latency_p95()
+
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Vazão: {throughput:.2f} msg/min, Latência P95: {p95_latency:.2f} ms")
 
             threading.Timer(10, loop).start()
         loop()
@@ -482,9 +503,9 @@ if __name__ == "__main__":
     client.gui = app
     client.connect_user()
 
-    def start_test_throughput():
-        test_throughput = messagebox.askyesno("Teste de Throughput", "Deseja testar o Throughput (spam automatico de mensagens) ?")
-        client.retry_loop(test_throughput)
+    def start_test_benchmark():
+        test_benchmark = messagebox.askyesno("Benchmark", "Deseja iniciar o teste de desempenho (spam automatico de mensagens) ?")
+        client.retry_loop(test_benchmark)
 
-    app.after(100, start_test_throughput)
+    app.after(100, start_test_benchmark)
     app.mainloop()
