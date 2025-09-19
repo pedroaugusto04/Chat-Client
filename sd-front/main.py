@@ -392,42 +392,45 @@ class ChatGUI(tk.Tk):
             messagebox.showwarning("Erro","Não foi possível enviar mensagem")
 
     def refresh_messages(self, initialLoad=False):
-        if not self.selected_group: return
+        if not self.selected_group:
+            return
         try:
             if initialLoad:
                 self.messages = self.client.get_messages(self.selected_group['id'], limit=10)
 
-            server_idem_keys = {m.get('idemKey') for m in self.messages}
-
-            # exibe as 10 ultimas confirmadas pelo servidor + as pendentes
-
             all_messages = list(self.messages)
+            for payload, _, group_id in self.client.pending_messages.values():
+                if group_id == self.selected_group['id']:
+                    all_messages.append(payload)
+
+            unique = {}
+            for m in all_messages:
+                unique[m.get("idemKey")] = m
+            all_messages = list(unique.values())
+
             all_messages.sort(key=lambda m: m.get('timestampClient', ''))
 
             all_messages = all_messages[-10:]
 
-            for payload, _, group_id in self.client.pending_messages.values():
-                if group_id == self.selected_group['id'] and payload['idemKey'] not in server_idem_keys:
-                    all_messages.append(payload)
-
-            all_messages.sort(key=lambda m: m.get('timestampClient', ''))
-
             self.chat_area.config(state='normal')
             self.chat_area.delete(1.0, tk.END)
             self.chat_area.tag_configure("pending", foreground="orange")
+
             for m in all_messages:
                 ts_raw = m.get('timestampClient')
                 ts = datetime.fromisoformat(ts_raw).strftime("%H:%M:%S") if ts_raw else "??"
                 user_nick = m.get('userNickname', 'system')
                 text = m.get('text', '')
-                if 'idemKey' in m and m['idemKey'] in self.client.pending_messages:
+
+                if m.get('idemKey') in self.client.pending_messages:
                     self.chat_area.insert(tk.END, f"[{ts}] {user_nick}: {text} ⏳\n", "pending")
                 else:
                     self.chat_area.insert(tk.END, f"[{ts}] {user_nick}: {text}\n")
+
             self.chat_area.config(state='disabled')
             self.chat_area.yview(tk.END)
         except:
-            messagebox.showwarning("Erro","Não foi possível recuperar mensagens")
+            messagebox.showwarning("Erro", "Não foi possível recuperar mensagens")
 
     def show_reconnect_modal(self):
         if self.reconnect_popup: return
