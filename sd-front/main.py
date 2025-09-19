@@ -92,6 +92,8 @@ class ChatClient:
         self.connected = False
         self.subscriptions.clear()
         self.current_group_sub_id = None
+        print("Cliente Desconectado")
+        self.gui.show_reconnect_modal()
 
     def _on_error(self, ws, error):
         self.connected = False
@@ -111,6 +113,18 @@ class ChatClient:
         body = message[body_start_index + 2:].rstrip('\x00') if body_start_index != -1 else ''
 
         if command == "CONNECTED":
+
+            print("Cliente Conectado")
+
+            # recupera as mensagens perdidas pelo servidor
+            if self.gui:
+                self.gui.after(0, self.gui.refresh_messages, True)
+
+            # fecha popup de reconexao caso esteja aberto
+            if self.gui and self.gui.reconnect_popup:
+                self.gui.reconnect_popup.destroy()
+                self.gui.reconnect_popup = None
+
             if self.gui:
                 self.gui.after(0,self.gui.refresh_groups)
             if self.initial_nickname:
@@ -215,11 +229,11 @@ class ChatClient:
 
     def _on_ws_error(self, error_message):
         self.connected = False
-        if self.gui:
-            self.gui.after(0, lambda: show_msg_warning(self, self.gui, "Erro", "Falha ao enviar mensagem"))
+        self.is_connecting = False
 
     def retry_pending_messages(self):
         # tentativa de reenvio com backoff + jitter
+
         for idemKey in list(self.pending_messages.keys()):
             payload, interval, group_id = self.pending_messages[idemKey]
             text, nickname = payload['text'], payload['userNickname']
@@ -355,7 +369,7 @@ class ChatGUI(tk.Tk):
             self.groups_list.delete(0, tk.END)
             for g in self.groups:
                 self.groups_list.insert(tk.END, f"{g['id']} - {g['name']}")
-        except:
+        except Exception as e:
             messagebox.showwarning("Erro","Não foi possível recuperar os grupos")
 
     def on_group_select(self, event):
@@ -422,7 +436,8 @@ class ChatGUI(tk.Tk):
                 user_nick = m.get('userNickname', 'system')
                 text = m.get('text', '')
 
-                if m.get('idemKey') in self.client.pending_messages:
+                if (m.get("idemKey") in self.client.pending_messages
+                        and m.get("idemKey") not in {x.get("idemKey") for x in self.messages}):
                     self.chat_area.insert(tk.END, f"[{ts}] {user_nick}: {text} ⏳\n", "pending")
                 else:
                     self.chat_area.insert(tk.END, f"[{ts}] {user_nick}: {text}\n")
@@ -433,31 +448,33 @@ class ChatGUI(tk.Tk):
             messagebox.showwarning("Erro", "Não foi possível recuperar mensagens")
 
     def show_reconnect_modal(self):
-        if self.reconnect_popup: return
+        if self.reconnect_popup or client.connected:
+            return
+
         self.reconnect_popup = tk.Toplevel(self)
         self.reconnect_popup.title("Aviso")
-        self.reconnect_popup.geometry("300x80")
-        self.reconnect_popup.transient(self)
+        self.reconnect_popup.transient(self)  # mantém acima da janela principal
         self.reconnect_popup.protocol("WM_DELETE_WINDOW", lambda: None)
-        tk.Label(self.reconnect_popup, text="Conexão Perdida. Tentando Reconectar...",
-                 fg="white", bg="orange", font=("Arial", 12)).pack(expand=True, fill=tk.BOTH)
-        self.check_connection_status()
 
-    def check_connection_status(self):
-        if self.client.connected:
-            if self.reconnect_popup:
-                self.reconnect_popup.destroy()
-                self.reconnect_popup = None
-        else:
-            self.after(500, self.check_connection_status)
+        width, height = 300, 80
 
+        parent_x = self.winfo_x()
+        parent_y = self.winfo_y()
+        parent_width = self.winfo_width()
+        parent_height = self.winfo_height()
 
-def show_msg_warning(client, gui, title, message):
-    if not client.connected and gui:
-        gui.show_reconnect_modal()
-        return
-    messagebox.showwarning(title, message)
+        x = parent_x + (parent_width - width) // 2
+        y = parent_y + (parent_height - height) // 2
 
+        self.reconnect_popup.geometry(f"{width}x{height}+{x}+{y}")
+
+        tk.Label(
+            self.reconnect_popup,
+            text="Conexão Perdida. Tentando Reconectar...",
+            fg="white",
+            bg="orange",
+            font=("Arial", 12)
+        ).pack(expand=True, fill=tk.BOTH)
 
 if __name__ == "__main__":
     client = ChatClient()
