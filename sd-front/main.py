@@ -354,9 +354,9 @@ class ChatGUI(tk.Tk):
     def create_widgets(self):
         group_frame = ttk.Frame(self)
         group_frame.pack(pady=5)
-        ttk.Label(group_frame, text="Group Name:").pack(side=tk.LEFT)
+        ttk.Label(group_frame, text="Nome do Grupo:").pack(side=tk.LEFT)
         ttk.Entry(group_frame, textvariable=self.group_name).pack(side=tk.LEFT)
-        ttk.Button(group_frame, text="Create Group", command=self.create_group).pack(side=tk.LEFT)
+        ttk.Button(group_frame, text="Criar Grupo", command=self.create_group).pack(side=tk.LEFT)
 
         self.groups_list = tk.Listbox(self, height=5)
         self.groups_list.pack(fill=tk.X, padx=10)
@@ -369,7 +369,7 @@ class ChatGUI(tk.Tk):
         msg_frame.pack(pady=5, fill=tk.X)
         self.msg_entry = ttk.Entry(msg_frame)
         self.msg_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
-        ttk.Button(msg_frame, text="Send", command=self.send_message).pack(side=tk.LEFT)
+        ttk.Button(msg_frame, text="Enviar", command=self.send_message).pack(side=tk.LEFT)
 
     def create_group(self):
         group_name = self.group_name.get().strip()
@@ -378,7 +378,7 @@ class ChatGUI(tk.Tk):
             return
         try:
             self.client.create_group(group_name)
-            messagebox.showinfo("Success", f"Grupo criado: {group_name}")
+            messagebox.showinfo("Sucesso", f"Grupo criado: {group_name}")
         except:
             messagebox.showwarning("Erro","Grupo já existe")
 
@@ -389,7 +389,7 @@ class ChatGUI(tk.Tk):
             self.groups = self.client.list_groups()
             self.groups_list.delete(0, tk.END)
             for g in self.groups:
-                self.groups_list.insert(tk.END, f"{g['id']} - {g['name']}")
+                self.groups_list.insert(tk.END, f"Grupo - {g['name']}")
         except Exception as e:
             messagebox.showwarning("Erro","Não foi possível recuperar os grupos")
 
@@ -398,6 +398,8 @@ class ChatGUI(tk.Tk):
         if not selection: return
         index = selection[0]
         self.selected_group = self.groups[index]
+
+        self.highlight_selected_group()
 
         if not self.nickname:
             self.nickname = simpledialog.askstring("Nickname", "Digite seu nickname:")
@@ -419,7 +421,9 @@ class ChatGUI(tk.Tk):
     def send_message(self):
         if not self.selected_group: return
         text = self.msg_entry.get().strip()
-        if not text: return
+        if not text:
+            messagebox.showwarning("Aviso", "A mensagem não pode ser vazia")
+            return
         try:
             self.client.send_message(str(uuid.uuid4()), self.selected_group['id'], text, self.nickname)
             self.msg_entry.delete(0, tk.END)
@@ -496,6 +500,17 @@ class ChatGUI(tk.Tk):
             bg="orange",
             font=("Arial", 12)
         ).pack(expand=True, fill=tk.BOTH)
+
+    def highlight_selected_group(self):
+        self.groups_list.selection_clear(0, tk.END)
+
+        if self.selected_group:
+            try:
+                index = self.groups.index(self.selected_group)
+                self.groups_list.selection_set(index)
+                self.groups_list.config(selectbackground="green", selectforeground="white")
+            except ValueError:
+                pass
 
 if __name__ == "__main__":
     client = ChatClient()
