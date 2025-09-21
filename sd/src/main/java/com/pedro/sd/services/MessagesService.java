@@ -49,7 +49,8 @@ public class MessagesService {
     }
 
     public void publishMessageToKafka(Integer groupId, MessageSendDTO messageSendDTO) {
-        kafkaTemplate.send("chat-messages", groupId.toString(), messageSendDTO);
+        kafkaTemplate.executeInTransaction(template ->
+            template.send("chat-messages", groupId.toString(),messageSendDTO));
     }
 
 

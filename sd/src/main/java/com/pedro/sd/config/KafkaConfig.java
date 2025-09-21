@@ -3,14 +3,17 @@ package com.pedro.sd.config;
 import com.pedro.sd.models.DTO.MessageSendDTO;
 import com.pedro.sd.services.LogsService;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
-import org.springframework.kafka.core.ConsumerFactory;
-import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
+import org.springframework.kafka.core.*;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
+import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.kafka.transaction.KafkaTransactionManager;
 import org.springframework.util.backoff.BackOff;
 
 import java.util.HashMap;
@@ -26,6 +29,20 @@ public class KafkaConfig {
     }
 
     @Bean
+    public ProducerFactory<String, MessageSendDTO> producerFactory() {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+
+        DefaultKafkaProducerFactory<String, MessageSendDTO> factory =
+                new DefaultKafkaProducerFactory<>(props);
+        // habilita transacao pra kafka + banco
+        factory.setTransactionIdPrefix("tx-");
+        return factory;
+    }
+
+    @Bean
     public ConsumerFactory<String, MessageSendDTO> consumerFactory() {
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
@@ -34,6 +51,13 @@ public class KafkaConfig {
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
         props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
         return new DefaultKafkaConsumerFactory<>(props);
+    }
+
+    // transacao unica kafka + banco
+    @Bean
+    public KafkaTransactionManager<String, MessageSendDTO> kafkaTransactionManager(
+            ProducerFactory<String, MessageSendDTO> producerFactory) {
+        return new KafkaTransactionManager<>(producerFactory);
     }
 
     // retry com backoff + jitter
@@ -56,5 +80,10 @@ public class KafkaConfig {
 
         factory.setCommonErrorHandler(errorHandler);
         return factory;
+    }
+
+    @Bean
+    public KafkaTemplate<String, MessageSendDTO> kafkaTemplate() {
+        return new KafkaTemplate<>(producerFactory());
     }
 }
