@@ -7,6 +7,7 @@ import com.pedro.sd.services.LogsService;
 import com.pedro.sd.services.MessagesService;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,7 +29,7 @@ public class ChatMessageConsumer {
 
     @KafkaListener(topics = "chat-messages", groupId = "chat-consumer-group")
     @Transactional("kafkaTransactionManager")
-    public void consume(ConsumerRecord<String, MessageSendDTO> messageRecord) {
+    public void consume(ConsumerRecord<String, MessageSendDTO> messageRecord, Acknowledgment ack) {
         MessageSendDTO messageDTO = messageRecord.value();
         Integer groupId = Integer.valueOf(messageRecord.key());
 
@@ -37,7 +38,11 @@ public class ChatMessageConsumer {
         /* caso a mensagem com mesma chave de idempotencia ja tenha sido processada, nao processa novamente
         */
         boolean msgAlreadyProcessed = messagesService.messageAlreadyProcessed(messageDTO);
-        if (msgAlreadyProcessed) return;
+        if (msgAlreadyProcessed) {
+            confirmMessageProcess(messageDTO,groupId);
+            ack.acknowledge();
+            return;
+        }
 
         // persiste a mensagem no banco
         messagesService.sendMessage(groupId, messageDTO);
@@ -47,6 +52,12 @@ public class ChatMessageConsumer {
         logsService.log(messageDTO, "CONSUME_MESSAGE",
                     "Mensagem persistida no banco em " + latency + " ms");
 
+        confirmMessageProcess(messageDTO,groupId);
+
+        ack.acknowledge();
+    }
+
+    public void confirmMessageProcess(MessageSendDTO messageDTO, Integer groupId) {
         // envia a mensagem para os clientes ws conectados no grupo
         messagingTemplate.convertAndSend("/topic/messages." + groupId,
                 new MessageResponseDTO(
@@ -63,6 +74,5 @@ public class ChatMessageConsumer {
             messagingTemplate.convertAndSend("/topic/acks." + userNickname,
                     new ProcessedMessageDTO(messageDTO.idemKey()));
         }
-
     }
 }
