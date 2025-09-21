@@ -31,7 +31,13 @@ public class ChatMessageConsumer {
         Integer groupId = Integer.valueOf(messageRecord.key());
 
         try {
+
             long startTime = System.currentTimeMillis();
+
+            /* caso a mensagem com mesma chave de idempotencia ja tenha sido processada, nao processa novamente
+             */
+            boolean msgAlreadyProcessed = messagesService.messageAlreadyProcessed(messageDTO);
+            if (msgAlreadyProcessed) return;
 
             // persiste a mensagem no banco
             messagesService.sendMessage(groupId, messageDTO);

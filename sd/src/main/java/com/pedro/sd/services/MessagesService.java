@@ -37,15 +37,6 @@ public class MessagesService {
 
     public void sendMessage(Integer groupId, MessageSendDTO messageDTO) {
 
-        Message processedMessage = this.messagesRepository.findByIdemKey(messageDTO.idemKey()).orElse(null);
-
-        /* caso a mensagem com mesma chave de idempotencia ja tenha sido processada, nao processa novamente
-        */
-        if (processedMessage != null) {
-            this.logsService.log(messageDTO, "MESSAGE_ALREADY_PROCESSED", "Mensagem ja processada");
-            return;
-        }
-
         User user = this.usersService.getUserByNickname(messageDTO.userNickname());
 
         Group group = this.groupsService.getGroup(groupId);
@@ -83,5 +74,16 @@ public class MessagesService {
         .map(m -> new MessageResponseDTO(m.getIdemKey(),m.getText(), m.getUser().getId(), m.getUser().getNickname(),m.getDate(),null))
         .collect(Collectors.toList());
 
+    }
+
+    public boolean messageAlreadyProcessed(MessageSendDTO messageDTO) {
+        Message processedMessage = this.messagesRepository.findByIdemKey(messageDTO.idemKey()).orElse(null);
+
+        if (processedMessage != null) {
+            this.logsService.log(messageDTO, "MESSAGE_ALREADY_PROCESSED", "Mensagem ja processada");
+            return true;
+        }
+
+        return false;
     }
 }
