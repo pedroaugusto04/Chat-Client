@@ -7,6 +7,7 @@ import com.pedro.sd.models.Entities.Message;
 import com.pedro.sd.models.Entities.User;
 import com.pedro.sd.repositories.MessagesRepository;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -21,14 +22,17 @@ public class MessagesService {
     private MessagesRepository messagesRepository;
     private com.pedro.sd.services.UsersService usersService;
     private com.pedro.sd.services.GroupsService groupsService;
+    private final KafkaTemplate<String, MessageSendDTO> kafkaTemplate;
     private LogsService logsService;
 
+
     MessagesService(com.pedro.sd.services.UsersService usersService, com.pedro.sd.services.GroupsService groupsService, MessagesRepository messagesRepository,
-                    LogsService logsService) {
+                    LogsService logsService, KafkaTemplate<String, MessageSendDTO> kafkaTemplate) {
         this.messagesRepository = messagesRepository;
         this.usersService = usersService;
         this.groupsService = groupsService;
         this.logsService = logsService;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     public void sendMessage(Integer groupId, MessageSendDTO messageDTO) {
@@ -52,6 +56,11 @@ public class MessagesService {
 
         this.usersService.updateUserLastActivity(user, messageDTO.timestampClient());
     }
+
+    public void publishMessageToKafka(Integer groupId, MessageSendDTO messageSendDTO) {
+        kafkaTemplate.send("chat-messages", groupId.toString(), messageSendDTO);
+    }
+
 
     public List<MessageResponseDTO> getMessages(Integer groupId, Date since, Integer limit) {
         Group group = this.groupsService.getGroup(groupId);

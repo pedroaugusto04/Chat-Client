@@ -2,7 +2,6 @@ package com.pedro.sd.controllers;
 
 import com.pedro.sd.models.DTO.MessageResponseDTO;
 import com.pedro.sd.models.DTO.MessageSendDTO;
-import com.pedro.sd.models.DTO.ProcessedMessageDTO;
 import com.pedro.sd.models.DTO.UserDTO;
 import com.pedro.sd.services.LogsService;
 import com.pedro.sd.services.MessagesService;
@@ -24,12 +23,10 @@ public class MessagesController {
 
     private MessagesService messagesService;
     private LogsService logsService;
-    private SimpMessagingTemplate messagingTemplate;
 
     MessagesController(MessagesService messagesService, LogsService logsService, SimpMessagingTemplate messagingTemplate) {
         this.messagesService = messagesService;
         this.logsService = logsService;
-        this.messagingTemplate = messagingTemplate;
     }
 
     @GetMapping("groups/{id}/messages")
@@ -59,32 +56,20 @@ public class MessagesController {
     }
 
     @PostMapping("/chat/{groupId}/messages")
-    public void sendMessageWS(@PathVariable Integer groupId, @RequestBody MessageSendDTO messageDTO
-    ) {
-
-        this.logsService.log(messageDTO, "SEND_MESSAGE_WS", "Entrou no endpoint WS para envio de mensagem");
+    public void sendMessageWS(@PathVariable Integer groupId,
+                              @RequestBody MessageSendDTO messageDTO) {
 
         long startTime = System.currentTimeMillis();
 
-        messagesService.sendMessage(groupId, messageDTO);
+        this.logsService.log(messageDTO, "SEND_MESSAGE_WS",
+                "Entrou no endpoint para envio de mensagem");
+
+        // tenta publicar a mensagem na fila
+        messagesService.publishMessageToKafka(groupId, messageDTO);
 
         long latency = System.currentTimeMillis() - startTime;
 
-        this.logsService.log(messageDTO, "SEND_MESSAGE_WS", "Mensagem enviada via WS em " + latency + " ms");
-
-        // envia pra todos do grupo ( somente apos salvar no banco )
-        messagingTemplate.convertAndSend("/topic/messages." + groupId,
-                new MessageResponseDTO(messageDTO.idemKey(),messageDTO.text(), null, messageDTO.userNickname(), messageDTO.timestampClient(), messageDTO.sentTime()));
-
-        // confirma o processamento da mensagem
-        String userNickname = messageDTO.userNickname();
-        if (userNickname != null && !userNickname.isEmpty()) {
-            String ackDestination = "/topic/acks." + userNickname;
-
-            messagingTemplate.convertAndSend(ackDestination, new ProcessedMessageDTO(messageDTO.idemKey()));
-
-            this.logsService.log(messageDTO, "SEND_ACK_MESSAGE_WS", "Mensagem processada com sucesso e enviada para o topico com nickname " + userNickname);
-        }
+        this.logsService.log(messageDTO, "SEND_MESSAGE_WS", "Iniciou tentativa de publicacao na fila em " + latency + " ms");
     }
 
 }
