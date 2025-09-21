@@ -252,7 +252,6 @@ class ChatClient:
 
     def retry_pending_messages(self):
         # tentativa de reenvio com backoff + jitter
-
         for idemKey in list(self.pending_messages.keys()):
             payload, interval, group_id = self.pending_messages[idemKey]
             text, nickname = payload['text'], payload['userNickname']

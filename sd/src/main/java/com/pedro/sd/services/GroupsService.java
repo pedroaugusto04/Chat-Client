@@ -1,12 +1,11 @@
 package com.pedro.sd.services;
 
-import java.util.List;
-
-import org.springframework.stereotype.Service;
-
 import com.pedro.sd.models.DTO.GroupDTO;
 import com.pedro.sd.models.Entities.Group;
 import com.pedro.sd.repositories.GroupsRepository;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class GroupsService {
@@ -22,6 +21,12 @@ public class GroupsService {
         Group group = new Group(groupDTO.name());
 
         this.groupsRepository.save(group);
+    }
+
+    public void createIfNotExists(String groupName) {
+        if (this.groupsRepository.findByName(groupName).orElse(null) == null) {
+            this.groupsRepository.save(new Group(groupName));
+        }
     }
 
     public Group getGroup(Integer groupId) {

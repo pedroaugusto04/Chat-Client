@@ -1,0 +1,7 @@
+akhq:
+  connections:
+    local:
+      properties:
+        bootstrap.servers: "kafka:9092"
+      schema-registry:
+        url: ""

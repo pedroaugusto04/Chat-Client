@@ -1,4 +1,4 @@
-package com.pedro.sd.config;
+package com.pedro.sd.config.database;
 
 import jakarta.persistence.EntityManagerFactory;
 import org.springframework.context.annotation.Bean;
