@@ -10,11 +10,17 @@
         </encoder>
     </appender>
 
-    <logger name="CUSTOM_LOGGER" level="INFO" additivity="false">
+    <appender name="ASYNC_CUSTOM_FILE" class="ch.qos.logback.classic.AsyncAppender">
         <appender-ref ref="CUSTOM_FILE" />
+        <queueSize>5000</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+    </appender>
+
+    <logger name="CUSTOM_LOGGER" level="INFO" additivity="false">
+        <appender-ref ref="ASYNC_CUSTOM_FILE" />
     </logger>
 
     <root level="INFO">
-        <appender-ref ref="CUSTOM_FILE"/>
+        <appender-ref ref="ASYNC_CUSTOM_FILE"/>
     </root>
 </configuration>
