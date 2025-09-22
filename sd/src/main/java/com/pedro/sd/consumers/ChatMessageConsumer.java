@@ -12,6 +12,9 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+
 @Component
 public class ChatMessageConsumer {
 
@@ -51,7 +54,9 @@ public class ChatMessageConsumer {
         long latency = System.currentTimeMillis() - startTime;
 
         logsService.log(messageDTO, "CONSUME_MESSAGE",
-                    "Mensagem persistida no banco em " + latency + " ms");
+                "Mensagem persistida no banco em " + latency + " ms");
+
+        messageDTO.setTimestampServer(LocalDateTime.now(ZoneOffset.UTC));
 
         confirmMessageProcess(messageDTO,groupId);
 
@@ -62,18 +67,19 @@ public class ChatMessageConsumer {
         // envia a mensagem para os clientes ws conectados no grupo
         messagingTemplate.convertAndSend("/topic/messages." + groupId,
                 new MessageResponseDTO(
-                        messageDTO.idemKey(),
-                        messageDTO.text(),
+                        messageDTO.getIdemKey(),
+                        messageDTO.getText(),
                         null,
-                        messageDTO.userNickname(),
-                        messageDTO.timestampClient(),
-                        messageDTO.sentTime()));
+                        messageDTO.getUserNickname(),
+                        messageDTO.getTimestampClient(),
+                        messageDTO.getSentTime(),
+                        messageDTO.getTimestampServer()));
 
         // confirma o processamento da mensagem
-        String userNickname = messageDTO.userNickname();
+        String userNickname = messageDTO.getUserNickname();
         if (userNickname != null && !userNickname.isEmpty()) {
             messagingTemplate.convertAndSend("/topic/acks." + userNickname,
-                    new ProcessedMessageDTO(messageDTO.idemKey()));
+                    new ProcessedMessageDTO(messageDTO.getIdemKey()));
         }
     }
 }

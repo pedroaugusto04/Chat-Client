@@ -37,15 +37,15 @@ public class MessagesService {
 
     public void sendMessage(Integer groupId, MessageSendDTO messageDTO) {
 
-        User user = this.usersService.getUserByNickname(messageDTO.userNickname());
+        User user = this.usersService.getUserByNickname(messageDTO.getUserNickname());
 
         Group group = this.groupsService.getGroup(groupId);
 
-        Message message = new Message(messageDTO.text(), user, group, messageDTO.idemKey(), messageDTO.timestampClient());
+        Message message = new Message(messageDTO.getText(), user, group, messageDTO.getIdemKey(), messageDTO.getTimestampClient());
 
         this.messagesRepository.save(message);
 
-        this.usersService.updateUserLastActivity(user, messageDTO.timestampClient());
+        this.usersService.updateUserLastActivity(user, messageDTO.getTimestampClient());
     }
 
     public void publishMessageToKafka(Integer groupId, MessageSendDTO messageSendDTO) {
@@ -72,13 +72,13 @@ public class MessagesService {
         }
 
        return messages.stream()
-        .map(m -> new MessageResponseDTO(m.getIdemKey(),m.getText(), m.getUser().getId(), m.getUser().getNickname(),m.getDate(),null))
+        .map(m -> new MessageResponseDTO(m.getIdemKey(),m.getText(), m.getUser().getId(), m.getUser().getNickname(),m.getDate(),null,null))
         .collect(Collectors.toList());
 
     }
 
     public boolean messageAlreadyProcessed(MessageSendDTO messageDTO) {
-        Message processedMessage = this.messagesRepository.findByIdemKey(messageDTO.idemKey()).orElse(null);
+        Message processedMessage = this.messagesRepository.findByIdemKey(messageDTO.getIdemKey()).orElse(null);
 
         if (processedMessage != null) {
             this.logsService.log(messageDTO, "MESSAGE_ALREADY_PROCESSED", "Mensagem ja processada");

@@ -4,14 +4,14 @@ import time
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext, simpledialog
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 import json
 import websocket
 import numpy as np
 
-BASE_URL = "http://localhost:8080"
-WS_URL = "ws://localhost:8080/chat"
+BASE_URL = "http://127.0.0.1"
+WS_URL = "ws://127.0.0.1/chat"
 
 
 class ChatClient:
@@ -92,7 +92,7 @@ class ChatClient:
         connect_headers = {
             "accept-version": "1.2",
             "heart-beat": "10000,10000",
-            "host": "localhost"
+            "host": "127.0.0.1"
         }
         self.stomp_transmit("CONNECT", connect_headers)
 
@@ -147,12 +147,25 @@ class ChatClient:
 
             try:
                 data = json.loads(body)
-                idemKey = data.get("idemKey")
-                sentTimeClient = data.get("sentTime") # tempo em que a mensagem foi enviada
-                if sentTimeClient:
+                sentTimeClient = data.get("timestampClient")
+                timestampServer = data.get("timestampServer")
+
+                if sentTimeClient and timestampServer:
+
                     sentTimeClient = datetime.fromisoformat(sentTimeClient)
-                    latency_ms = (datetime.now() - sentTimeClient).total_seconds() * 1000
+                    if sentTimeClient.tzinfo is None:
+                        sentTimeClient = sentTimeClient.replace(tzinfo=timezone.utc)
+                    else:
+                        sentTimeClient = sentTimeClient.astimezone(timezone.utc)
+
+                    timestampServer = datetime.fromisoformat(timestampServer)
+                    timestampServer = timestampServer - timedelta(hours=3)
+                    timestampServer = timestampServer.replace(tzinfo=timezone.utc)
+
+                    latency_ms = (timestampServer - sentTimeClient).total_seconds() * 1000
+
                     self.latencies.append(latency_ms)
+
             except Exception:
                 pass
 
