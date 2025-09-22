@@ -33,6 +33,10 @@ public class GroupsService {
         return this.groupsRepository.findById(groupId).orElseThrow(() -> new RuntimeException());
     }
 
+    public Group getGroupByName(String groupName) {
+        return this.groupsRepository.findByName(groupName).orElseThrow(() -> new RuntimeException());
+    }
+
     public List<Group> getGroups() {
         return this.groupsRepository.findAll();
     }

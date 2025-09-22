@@ -30,6 +30,7 @@ public class ChatMessageConsumer {
     @KafkaListener(topics = "chat-messages", groupId = "chat-consumer-group")
     @Transactional("kafkaTransactionManager")
     public void consume(ConsumerRecord<String, MessageSendDTO> messageRecord, Acknowledgment ack) {
+
         MessageSendDTO messageDTO = messageRecord.value();
         Integer groupId = Integer.valueOf(messageRecord.key());
 
