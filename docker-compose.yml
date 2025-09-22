@@ -1,18 +1,38 @@
+x-spring-base: &spring-base
+  build: ./sd
+  network_mode: host
+  depends_on:
+    kafka:
+      condition: service_healthy
+    mysql:
+      condition: service_healthy
+  environment:
+    SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/db_sd
+    SPRING_DATASOURCE_USERNAME: root
+    SPRING_DATASOURCE_PASSWORD: root
+    SPRING_KAFKA_BOOTSTRAP_SERVERS: 127.0.0.1:9092
+    SERVER_PORT: 8080
+
 services:
-  app:
-    build: ./sd
-    container_name: spring-app
-    network_mode: host
-    depends_on:
-      kafka:
-        condition: service_healthy
-      mysql:
-        condition: service_healthy
+  app1:
+    <<: *spring-base
+    container_name: spring-app1
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/db_sd
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
       SPRING_KAFKA_BOOTSTRAP_SERVERS: 127.0.0.1:9092
+      SERVER_PORT: 8081
+
+  app2:
+    <<: *spring-base
+    container_name: spring-app2
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/db_sd
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: 127.0.0.1:9092
+      SERVER_PORT: 8082
 
   mysql:
     image: mysql:8.0
