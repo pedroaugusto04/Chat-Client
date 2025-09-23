@@ -64,11 +64,8 @@
         </dependency>
         <dependency>
             <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-actuator</artifactId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+            <version>1.15.4</version>
         </dependency>
     </dependencies>
 

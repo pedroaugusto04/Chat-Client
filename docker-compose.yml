@@ -132,5 +132,15 @@ services:
       - ./application.yml:/app/application.yml
     restart: always
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    network_mode: host
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    restart: always
+
 volumes:
   mysql_data:

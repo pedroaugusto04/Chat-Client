@@ -37,6 +37,10 @@ class ChatClient:
         # cria grupo teste_vazao e usuario admin para realizar o envio das mensagens automaticamente
         # utilizado pra testar throughput
 
+        if self.gui:
+            self.gui.disable_all_controls()
+            self.gui.open_stress_test_popup()
+
         group_id = None
         nickname = "admin"
 
@@ -63,6 +67,9 @@ class ChatClient:
             for _ in range(numSend):
                 self.send_message(str(uuid.uuid4()), group_id, "TESTE VAZÃO", nickname)
                 time.sleep(0.09)
+            if self.gui:
+                self.gui.enable_all_controls()
+                self.gui.close_stress_test_popup()
 
         thread = threading.Thread(target=send_messages_loop, args=(110,), daemon=True)
         thread.start()
@@ -304,11 +311,22 @@ class ChatGUI(tk.Tk):
         self.selected_group = None
         self.nickname = None
         self.reconnect_popup = None
+        self.stress_test_popup = None
         self.groups = []
         self.messages = []
         self.create_widgets()
 
     def create_widgets(self):
+        spam_frame = ttk.Frame(self)
+        spam_frame.pack(pady=5, fill=tk.X)
+
+        tk.Button(
+            spam_frame,
+            text="Teste de Carga",
+            command=self.client.spam_messages,
+            bg="orange",
+        ).pack(side=tk.LEFT, padx=5)
+
         group_frame = ttk.Frame(self)
         group_frame.pack(pady=5)
         ttk.Label(group_frame, text="Nome do Grupo:").pack(side=tk.LEFT)
@@ -327,6 +345,7 @@ class ChatGUI(tk.Tk):
         self.msg_entry = ttk.Entry(msg_frame)
         self.msg_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
         ttk.Button(msg_frame, text="Enviar", command=self.send_message).pack(side=tk.LEFT)
+
 
     def create_group(self):
         group_name = self.group_name.get().strip()
@@ -468,6 +487,45 @@ class ChatGUI(tk.Tk):
                 self.groups_list.config(selectbackground="green", selectforeground="white")
             except ValueError:
                 pass
+
+    def disable_all_controls(self):
+        self.groups_list.config(state='disabled')
+        for child in self.children.values():
+            if isinstance(child, ttk.Frame):
+                for w in child.winfo_children():
+                    if isinstance(w, ttk.Entry) or (
+                            isinstance(w, ttk.Button) and w.cget("text") in ["Criar Grupo", "Enviar"]):
+                        w.config(state='disabled')
+        self.msg_entry.config(state='disabled')
+
+    def enable_all_controls(self):
+        self.groups_list.config(state='normal')
+        for child in self.children.values():
+            if isinstance(child, ttk.Frame):
+                for w in child.winfo_children():
+                    if isinstance(w, ttk.Entry) or (
+                            isinstance(w, ttk.Button) and w.cget("text") in ["Criar Grupo", "Enviar"]):
+                        w.config(state='normal')
+        self.msg_entry.config(state='normal')
+        self.close_temp_warning()
+
+    def close_temp_warning(self):
+        if hasattr(self, "temp_popup") and self.temp_popup:
+            self.temp_popup.destroy()
+            self.temp_popup = None
+
+    def open_stress_test_popup(self):
+        self.stress_test_popup = tk.Toplevel(self)
+        self.stress_test_popup.title("Aviso")
+        self.stress_test_popup.geometry("500x200")
+        self.stress_test_popup.transient(self)
+        self.stress_test_popup.grab_set()
+        tk.Label(self.stress_test_popup, text="Teste de carga em execução. Aguarde alguns segundos...", bg="orange",
+                 font=("Arial", 12)).pack(expand=True, fill=tk.BOTH)
+
+    def close_stress_test_popup(self):
+        self.stress_test_popup.destroy()
+        self.stress_test_popup = None
 
 if __name__ == "__main__":
     client = ChatClient()
