@@ -10,7 +10,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
@@ -60,7 +60,12 @@ public class MessagesService {
         List<Message> messages;
 
         if (since != null) {
-            LocalDateTime sinceDateTime = LocalDateTime.ofInstant(since.toInstant(), ZoneId.systemDefault());
+
+            OffsetDateTime sinceDateTime = OffsetDateTime.ofInstant(
+                    since.toInstant(),
+                    ZoneId.systemDefault()
+            );
+
             messages = messagesRepository.findByGroupAndDateAfterOrderByDateDesc(
                     group,
                     sinceDateTime,
@@ -72,19 +77,8 @@ public class MessagesService {
         }
 
        return messages.stream()
-        .map(m -> new MessageResponseDTO(m.getIdemKey(),m.getText(), m.getUser().getId(), m.getUser().getNickname(),m.getDate(),null,null))
+        .map(m -> new MessageResponseDTO(m.getIdemKey(),m.getText(), m.getUser().getId(), m.getUser().getNickname(),m.getDate(),null))
         .collect(Collectors.toList());
 
-    }
-
-    public boolean messageAlreadyProcessed(MessageSendDTO messageDTO) {
-        Message processedMessage = this.messagesRepository.findByIdemKey(messageDTO.getIdemKey()).orElse(null);
-
-        if (processedMessage != null) {
-            this.logsService.log(messageDTO, "MESSAGE_ALREADY_PROCESSED", "Mensagem ja processada");
-            return true;
-        }
-
-        return false;
     }
 }

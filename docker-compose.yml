@@ -11,7 +11,6 @@ x-spring-base: &spring-base
     SPRING_DATASOURCE_USERNAME: root
     SPRING_DATASOURCE_PASSWORD: root
     SPRING_KAFKA_BOOTSTRAP_SERVERS: 127.0.0.1:9092
-    SERVER_PORT: 8080
 
 services:
   app1:
@@ -22,7 +21,13 @@ services:
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
       SPRING_KAFKA_BOOTSTRAP_SERVERS: 127.0.0.1:9092
-      SERVER_PORT: 8081
+      SPRING_KAFKA_CONSUMER_GROUP_ID: group-app1
+      SERVER_PORT: 8080
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://127.0.0.1:8080/actuator/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   app2:
     <<: *spring-base
@@ -32,7 +37,29 @@ services:
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
       SPRING_KAFKA_BOOTSTRAP_SERVERS: 127.0.0.1:9092
+      SPRING_KAFKA_CONSUMER_GROUP_ID: group-app2
+      SERVER_PORT: 8081
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://127.0.0.1:8081/actuator/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app3:
+    <<: *spring-base
+    container_name: spring-app3
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/db_sd
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: 127.0.0.1:9092
+      SPRING_KAFKA_CONSUMER_GROUP_ID: group-app3
       SERVER_PORT: 8082
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://127.0.0.1:8082/actuator/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   mysql:
     image: mysql:8.0
@@ -88,9 +115,9 @@ services:
       KAFKA_CREATE_TOPICS: "chat-messages:1:1"
     healthcheck:
       test: [ "CMD", "kafka-broker-api-versions", "--bootstrap-server", "127.0.0.1:9092" ]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   akhq:
     image: tchiotludo/akhq

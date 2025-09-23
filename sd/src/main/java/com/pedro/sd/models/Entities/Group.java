@@ -3,7 +3,7 @@ package com.pedro.sd.models.Entities;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Entity
@@ -18,7 +18,7 @@ public class Group {
     private String name;
 
     @Column(name = "creation_date", nullable = false)
-    private LocalDateTime creationDate;
+    private OffsetDateTime creationDate;
 
     @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
@@ -33,7 +33,7 @@ public class Group {
     @PrePersist
     public void prePersist() {
         if (creationDate == null) {
-            creationDate = LocalDateTime.now();
+            creationDate = OffsetDateTime.now();
         }
     }
 
@@ -53,11 +53,11 @@ public class Group {
         this.name = name;
     }
 
-    public LocalDateTime getCreationDate() {
+    public OffsetDateTime getCreationDate() {
         return creationDate;
     }
 
-    public void setCreationDate(LocalDateTime creationDate) {
+    public void setCreationDate(OffsetDateTime creationDate) {
         this.creationDate = creationDate;
     }
 

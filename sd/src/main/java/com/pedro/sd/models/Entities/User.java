@@ -1,16 +1,9 @@
 package com.pedro.sd.models.Entities;
 
-import java.util.List;
+import jakarta.persistence.*;
 
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "users")
@@ -27,11 +20,11 @@ public class User {
     private List<Message> messages;
 
     @Column(name="last_activity")
-    private LocalDateTime timestampClient;
+    private OffsetDateTime timestampClient;
 
     public User() {}
 
-    public User(String nickname, LocalDateTime timestampClient) {
+    public User(String nickname, OffsetDateTime timestampClient) {
         this.nickname = nickname;
         this.timestampClient = timestampClient;
     }
@@ -60,11 +53,11 @@ public class User {
         this.messages = messages;
     }
 
-    public LocalDateTime getTimestampClient() {
+    public OffsetDateTime getTimestampClient() {
         return timestampClient;
     }
 
-    public void setTimestampClient(LocalDateTime timestampClient) {
+    public void setTimestampClient(OffsetDateTime timestampClient) {
         this.timestampClient = timestampClient;
     }
 }

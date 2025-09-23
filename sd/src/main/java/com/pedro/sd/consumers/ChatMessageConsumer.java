@@ -6,13 +6,14 @@ import com.pedro.sd.models.DTO.ProcessedMessageDTO;
 import com.pedro.sd.services.LogsService;
 import com.pedro.sd.services.MessagesService;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
 @Component
@@ -30,7 +31,7 @@ public class ChatMessageConsumer {
         this.messagingTemplate = messagingTemplate;
     }
 
-    @KafkaListener(topics = "chat-messages", groupId = "chat-consumer-group")
+    @KafkaListener(topics = "chat-messages", groupId = "${spring.kafka.consumer.group-id}")
     @Transactional("kafkaTransactionManager")
     public void consume(ConsumerRecord<String, MessageSendDTO> messageRecord, Acknowledgment ack) {
 
@@ -39,14 +40,26 @@ public class ChatMessageConsumer {
 
         long startTime = System.currentTimeMillis();
 
-        /* caso a mensagem com mesma chave de idempotencia ja tenha sido processada, nao processa novamente
+        /* caso a mensagem com mesma chave de idempotencia ja tenha sido processada, nao salva novamente
         */
-        boolean msgAlreadyProcessed = messagesService.messageAlreadyProcessed(messageDTO);
-        if (msgAlreadyProcessed) {
+        try {
+            saveMessage(groupId,messageDTO,startTime);
+            messageDTO.setTimestampServer(OffsetDateTime.now(ZoneOffset.UTC));
             confirmMessageProcess(messageDTO,groupId);
             ack.acknowledge();
-            return;
+        } catch(DataIntegrityViolationException ex) {
+            this.logsService.log(messageDTO, "MESSAGE_ALREADY_PROCESSED", "Mensagem ja processada");
+            messageDTO.setTimestampServer(OffsetDateTime.now(ZoneOffset.UTC));
+            confirmMessageProcess(messageDTO,groupId);
+            ack.acknowledge();
+        } catch(Exception ex){
+            this.logsService.log(messageDTO, "ERROR", "Erro ao salvar mensagem no banco " + ex.getMessage());
+            throw ex;
         }
+    }
+
+    @Transactional
+    public void saveMessage(Integer groupId, MessageSendDTO messageDTO,long startTime) {
 
         // persiste a mensagem no banco
         messagesService.sendMessage(groupId, messageDTO);
@@ -55,12 +68,6 @@ public class ChatMessageConsumer {
 
         logsService.log(messageDTO, "CONSUME_MESSAGE",
                 "Mensagem persistida no banco em " + latency + " ms");
-
-        messageDTO.setTimestampServer(LocalDateTime.now(ZoneOffset.UTC));
-
-        confirmMessageProcess(messageDTO,groupId);
-
-        ack.acknowledge();
     }
 
     public void confirmMessageProcess(MessageSendDTO messageDTO, Integer groupId) {
@@ -72,7 +79,6 @@ public class ChatMessageConsumer {
                         null,
                         messageDTO.getUserNickname(),
                         messageDTO.getTimestampClient(),
-                        messageDTO.getSentTime(),
                         messageDTO.getTimestampServer()));
 
         // confirma o processamento da mensagem

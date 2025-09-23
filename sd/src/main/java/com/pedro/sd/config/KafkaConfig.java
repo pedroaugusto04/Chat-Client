@@ -2,6 +2,7 @@ package com.pedro.sd.config;
 
 import com.pedro.sd.models.DTO.MessageSendDTO;
 import com.pedro.sd.services.LogsService;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -9,6 +10,7 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.*;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.listener.DefaultErrorHandler;
@@ -68,6 +70,7 @@ public class KafkaConfig {
                 new ConcurrentKafkaListenerContainerFactory<>();
 
         factory.setConsumerFactory(consumerFactory());
+        factory.setConcurrency(5);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
 
         long initialInterval = 500;
@@ -88,5 +91,14 @@ public class KafkaConfig {
     @Bean
     public KafkaTemplate<String, MessageSendDTO> kafkaTemplate() {
         return new KafkaTemplate<>(producerFactory());
+    }
+
+    @Bean
+    public NewTopic topic1() {
+        return TopicBuilder.name("chat-messages")
+                .partitions(5)
+                .replicas(1)
+                .compact()
+                .build();
     }
 }

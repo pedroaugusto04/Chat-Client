@@ -6,7 +6,7 @@ import com.pedro.sd.services.UsersService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Component
 public class DatabaseInitializer implements CommandLineRunner {
@@ -24,6 +24,6 @@ public class DatabaseInitializer implements CommandLineRunner {
         groupsService.createIfNotExists("Grupo_1");
         groupsService.createIfNotExists("teste_vazao");
 
-        usersService.createUser(new UserDTO("admin", LocalDateTime.now()));
+        usersService.createUser(new UserDTO("admin", OffsetDateTime.now()));
     }
 }

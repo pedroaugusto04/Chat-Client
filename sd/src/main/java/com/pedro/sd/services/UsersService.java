@@ -1,11 +1,11 @@
 package com.pedro.sd.services;
 
-import org.springframework.stereotype.Service;
-
 import com.pedro.sd.models.DTO.UserDTO;
 import com.pedro.sd.models.Entities.User;
 import com.pedro.sd.repositories.UsersRepository;
-import java.time.LocalDateTime;
+import org.springframework.stereotype.Service;
+
+import java.time.OffsetDateTime;
 
 @Service
 public class UsersService {
@@ -37,7 +37,7 @@ public class UsersService {
         this.usersRepository.save(user);
     }
 
-    public void updateUserLastActivity(User user, LocalDateTime date) {
+    public void updateUserLastActivity(User user, OffsetDateTime date) {
 
         user.setTimestampClient(date);
 

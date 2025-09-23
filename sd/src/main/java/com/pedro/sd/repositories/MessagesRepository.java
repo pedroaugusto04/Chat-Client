@@ -6,7 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,11 +17,11 @@ public interface MessagesRepository extends JpaRepository<Message, Integer> {
 
     Optional<Message> findByIdemKeyAndDateBetween(
             String idemKey,
-            LocalDateTime start,
-            LocalDateTime end
+            OffsetDateTime start,
+            OffsetDateTime end
     );
 
-    List<Message> findByGroupAndDateAfterOrderByDateDesc(Group group, LocalDateTime since, Pageable pageable);
+    List<Message> findByGroupAndDateAfterOrderByDateDesc(Group group, OffsetDateTime since, Pageable pageable);
 
     List<Message> findByGroupOrderByDateDesc(Group group, Pageable pageable);
 }

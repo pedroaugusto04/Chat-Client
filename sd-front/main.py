@@ -40,7 +40,7 @@ class ChatClient:
 
     def get_throughput(self, interval_seconds=60):
         # calcula a vazao de mensagens no ultimo minuto
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         cutoff = now - timedelta(seconds=interval_seconds)
         recent_msgs = [ts for ts in self.received_messages_timestamps if ts >= cutoff]
         return len(recent_msgs) * (60 / interval_seconds)
@@ -77,14 +77,13 @@ class ChatClient:
         except:
             pass
 
+        def send_messages_loop(numSend):
+            for _ in range(numSend):
+                self.send_message(str(uuid.uuid4()), group_id, "TESTE VAZÃO", nickname)
+                time.sleep(0.09)
 
-        # inicia spam de mensagens
-        num_send = 50
-        def send_one_message():
-            self.send_message(str(uuid.uuid4()), group_id, "TESTE VAZÃO", nickname)
-            time.sleep(0.1)
-        for _ in range(num_send):
-            threading.Thread(target=send_one_message, daemon=True).start()
+        thread = threading.Thread(target=send_messages_loop, args=(110,), daemon=True)
+        thread.start()
 
     def _on_open(self, ws):
         self.connected = True
@@ -159,8 +158,10 @@ class ChatClient:
                         sentTimeClient = sentTimeClient.astimezone(timezone.utc)
 
                     timestampServer = datetime.fromisoformat(timestampServer)
-                    timestampServer = timestampServer - timedelta(hours=3)
-                    timestampServer = timestampServer.replace(tzinfo=timezone.utc)
+                    if timestampServer.tzinfo is None:
+                        timestampServer = timestampServer.replace(tzinfo=timezone.utc)
+                    else:
+                        timestampServer = timestampServer.astimezone(timezone.utc)
 
                     latency_ms = (timestampServer - sentTimeClient).total_seconds() * 1000
 
@@ -229,7 +230,7 @@ class ChatClient:
             self.unsubscribe(self.current_group_sub_id)
             self.current_group_sub_id = self.subscribe(f"/topic/messages.{group_id}", self._on_group_message)
 
-        payload = {"nickname": nickname, "timestampClient": datetime.now().isoformat()}
+        payload = {"nickname": nickname, "timestampClient": datetime.now(timezone.utc).isoformat()}
         destination = f"/app/chat/{group_id}"
         headers = {"destination": destination, "content-type": "application/json"}
 
@@ -244,10 +245,19 @@ class ChatClient:
             "text": data.get("text"),
             "userId": data.get("userId"),
             "userNickname": data.get("userNickname"),
-            "timestampClient": data.get("timestampClient")
+            "timestampClient": data.get("timestampClient"),
+            "timestampServer": data.get("timestampServer")
         }
 
-        self.received_messages_timestamps.append(datetime.now())
+        ts_str = data.get("timestampServer")
+        if ts_str:
+            ts = datetime.fromisoformat(ts_str)
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            else:
+                ts = ts.astimezone(timezone.utc)
+            self.received_messages_timestamps.append(ts)
+
 
         self.gui.messages.append(msg)
         if idemKey and idemKey in self.pending_messages:
@@ -269,23 +279,24 @@ class ChatClient:
             payload, interval, group_id = self.pending_messages[idemKey]
             text, nickname = payload['text'], payload['userNickname']
             try:
-                self.send_message(idemKey, group_id, text, nickname,True, interval, payload['timestampClient'])
+                self.send_message(idemKey, group_id, text, nickname,True, interval)
             except Exception:
                 new_interval = min(interval * 2 * random.uniform(0.5, 1.5), 600)
                 threading.Timer(new_interval, self.send_message,
-                                args=(idemKey, group_id, text, nickname, True, new_interval, payload['timestampClient'])).start()
+                                args=(idemKey, group_id, text, nickname, True, new_interval)).start()
 
-    def send_message(self, idemKey, group_id, text, nickname, isRetry=False, messageInterval=None, timestampClient=None):
+    def send_message(self, idemKey, group_id, text, nickname, isRetry=False, messageInterval=None):
         if messageInterval is None:
             messageInterval = self.base_interval
+
         payload = {
             "idemKey": idemKey,
             "text": text,
             "userNickname": nickname,
-            "timestampClient": timestampClient if timestampClient else datetime.now().isoformat(),
+            "timestampClient": datetime.now(timezone.utc).isoformat(),
             "isRetry": isRetry,
-            "sentTime": datetime.now().isoformat()
         }
+
         self.pending_messages[idemKey] = (payload, messageInterval, group_id)
         self._switch_group_subscription(group_id, nickname)
 
@@ -321,14 +332,14 @@ class ChatClient:
             throughput = self.get_throughput(60)
             p95_latency = self.get_latency_p95()
 
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Vazão: {throughput:.2f} msg/min, Latência P95: {p95_latency:.2f} ms")
+            print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] Vazão: {throughput:.2f} msg/min, Latência P95: {p95_latency:.2f} ms")
 
             threading.Timer(10, loop).start()
         loop()
 
     def create_user(self, nickname):
         url = f"{BASE_URL}/nick"
-        payload = {"nickname": nickname, "timestampClient": datetime.now().isoformat()}
+        payload = {"nickname": nickname, "timestampClient": datetime.now(timezone.utc).isoformat()}
         self.session.post(url, json=payload).raise_for_status()
 
     def create_group(self, name):

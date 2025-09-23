@@ -1,6 +1,6 @@
 package com.pedro.sd.models.DTO;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
-public record UserDTO(String nickname, LocalDateTime timestampClient) {
+public record UserDTO(String nickname, OffsetDateTime timestampClient) {
 }

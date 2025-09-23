@@ -1,16 +1,8 @@
 package com.pedro.sd.models.Entities;
 
-import java.time.LocalDateTime;
+import jakarta.persistence.*;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "messages")
@@ -23,7 +15,7 @@ public class Message {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String text;
 
-    @Column(name = "idem_key",nullable = false)
+    @Column(name = "idem_key", nullable = false, unique = true)
     private String idemKey;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -35,11 +27,11 @@ public class Message {
     private Group group;
 
     @Column(nullable = false)
-    private LocalDateTime date;
+    private OffsetDateTime date;
 
     public Message() {}
 
-    public Message(String text, User user, Group group, String idemKey, LocalDateTime date) {
+    public Message(String text, User user, Group group, String idemKey, OffsetDateTime date) {
         this.text = text;
         this.user = user;
         this.group = group;
@@ -79,11 +71,11 @@ public class Message {
         this.group = group;
     }
 
-    public LocalDateTime getDate() {
+    public OffsetDateTime getDate() {
         return date;
     }
 
-    public void setDate(LocalDateTime date) {
+    public void setDate(OffsetDateTime date) {
         this.date = date;
     }
 
