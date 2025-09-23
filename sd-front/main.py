@@ -32,24 +32,6 @@ class ChatClient:
 
         self.base_interval = 5
 
-        # mede o tempo de recebimento das mensagens para throughput ( >= 100 msg / min )
-        self.received_messages_timestamps = []
-
-        # mede a latencia das requisicoes ( P95 <= 150ms )
-        self.latencies = []
-
-    def get_throughput(self, interval_seconds=60):
-        # calcula a vazao de mensagens no ultimo minuto
-        now = datetime.now(timezone.utc)
-        cutoff = now - timedelta(seconds=interval_seconds)
-        recent_msgs = [ts for ts in self.received_messages_timestamps if ts >= cutoff]
-        return len(recent_msgs) * (60 / interval_seconds)
-
-    def get_latency_p95(self):
-        if not self.latencies:
-            return 0.0
-        return np.percentile(self.latencies, 95)
-
     def spam_messages(self):
 
         # cria grupo teste_vazao e usuario admin para realizar o envio das mensagens automaticamente
@@ -144,32 +126,6 @@ class ChatClient:
             if sub_id in self.subscriptions:
                 self.subscriptions[sub_id](body)
 
-            try:
-                data = json.loads(body)
-                sentTimeClient = data.get("timestampClient")
-                timestampServer = data.get("timestampServer")
-
-                if sentTimeClient and timestampServer:
-
-                    sentTimeClient = datetime.fromisoformat(sentTimeClient)
-                    if sentTimeClient.tzinfo is None:
-                        sentTimeClient = sentTimeClient.replace(tzinfo=timezone.utc)
-                    else:
-                        sentTimeClient = sentTimeClient.astimezone(timezone.utc)
-
-                    timestampServer = datetime.fromisoformat(timestampServer)
-                    if timestampServer.tzinfo is None:
-                        timestampServer = timestampServer.replace(tzinfo=timezone.utc)
-                    else:
-                        timestampServer = timestampServer.astimezone(timezone.utc)
-
-                    latency_ms = (timestampServer - sentTimeClient).total_seconds() * 1000
-
-                    self.latencies.append(latency_ms)
-
-            except Exception:
-                pass
-
         elif command == "ERROR":
             self._on_ws_error(body)
 
@@ -245,19 +201,8 @@ class ChatClient:
             "text": data.get("text"),
             "userId": data.get("userId"),
             "userNickname": data.get("userNickname"),
-            "timestampClient": data.get("timestampClient"),
-            "timestampServer": data.get("timestampServer")
+            "timestampClient": data.get("timestampClient")
         }
-
-        ts_str = data.get("timestampServer")
-        if ts_str:
-            ts = datetime.fromisoformat(ts_str)
-            if ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
-            else:
-                ts = ts.astimezone(timezone.utc)
-            self.received_messages_timestamps.append(ts)
-
 
         self.gui.messages.append(msg)
         if idemKey and idemKey in self.pending_messages:
@@ -273,17 +218,21 @@ class ChatClient:
         self.connected = False
         self.is_connecting = False
 
-    def retry_pending_messages(self):
-        # tentativa de reenvio com backoff + jitter
-        for idemKey in list(self.pending_messages.keys()):
-            payload, interval, group_id = self.pending_messages[idemKey]
-            text, nickname = payload['text'], payload['userNickname']
-            try:
-                self.send_message(idemKey, group_id, text, nickname,True, interval)
-            except Exception:
-                new_interval = min(interval * 2 * random.uniform(0.5, 1.5), 600)
-                threading.Timer(new_interval, self.send_message,
-                                args=(idemKey, group_id, text, nickname, True, new_interval)).start()
+    def _send_with_backoff(self, idemKey):
+        if idemKey not in self.pending_messages:
+            return
+
+        payload, interval, group_id = self.pending_messages[idemKey]
+        text, nickname = payload['text'], payload['userNickname']
+
+        self.send_message(idemKey, group_id, text, nickname, True, interval)
+
+        new_interval = min(interval * 2 * random.uniform(0.5, 1.5), 600)
+
+        self.pending_messages[idemKey] = (payload, new_interval, group_id)
+
+        threading.Timer(new_interval, lambda: self._send_with_backoff(idemKey)).start()
+
 
     def send_message(self, idemKey, group_id, text, nickname, isRetry=False, messageInterval=None):
         if messageInterval is None:
@@ -293,7 +242,6 @@ class ChatClient:
             "idemKey": idemKey,
             "text": text,
             "userNickname": nickname,
-            "timestampClient": datetime.now(timezone.utc).isoformat(),
             "isRetry": isRetry,
         }
 
@@ -305,6 +253,7 @@ class ChatClient:
 
         def send_async():
             try:
+                payload["timestampClient"] = datetime.now(timezone.utc).isoformat()
                 url = f"{BASE_URL}/chat/{group_id}/messages"
                 self.session.post(url, json=payload)
             except:
@@ -312,29 +261,14 @@ class ChatClient:
 
         threading.Thread(target=send_async, daemon=True).start()
 
-    def retry_loop(self, test_benchmark: bool = False):
+        if not isRetry:
+            # tentativas de reenvio com backoff + jitter
+            threading.Timer(messageInterval, lambda: self._send_with_backoff(idemKey)).start()
+
+    def retry_loop(self):
         def loop():
-            nonlocal test_benchmark
-            if test_benchmark:
-                spamMessages = True
-                test_benchmark = False
-            else:
-                spamMessages = False
-
             self.connect_user()
-            self.retry_pending_messages()
-
-            # calcula e imprime a vazao (mensagens/minuto)
-
-            if spamMessages:
-                client.spam_messages()
-
-            throughput = self.get_throughput(60)
-            p95_latency = self.get_latency_p95()
-
-            print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] Vazão: {throughput:.2f} msg/min, Latência P95: {p95_latency:.2f} ms")
-
-            threading.Timer(10, loop).start()
+            threading.Timer(5, loop).start()
         loop()
 
     def create_user(self, nickname):
@@ -540,10 +474,5 @@ if __name__ == "__main__":
     app = ChatGUI(client)
     client.gui = app
     client.connect_user()
-
-    def start_test_benchmark():
-        test_benchmark = messagebox.askyesno("Benchmark", "Deseja iniciar o teste de desempenho (spam automatico de mensagens) ?")
-        client.retry_loop(test_benchmark)
-
-    app.after(100, start_test_benchmark)
+    client.retry_loop()
     app.mainloop()
