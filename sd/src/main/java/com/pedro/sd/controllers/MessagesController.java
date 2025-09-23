@@ -56,7 +56,7 @@ public class MessagesController {
 
     @PostMapping("/chat/{groupId}/messages")
     public void sendMessageWS(@PathVariable Integer groupId,
-                              @RequestBody MessageSendDTO messageDTO) {
+                              @RequestBody MessageSendDTO messageDTO) throws InterruptedException {
 
         long startTime = System.currentTimeMillis();
 

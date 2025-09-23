@@ -321,6 +321,7 @@ class ChatGUI(tk.Tk):
         self.groups = []
         self.messages = []
         self.since_filter = None
+        self.limit_filter = 10
         self.create_widgets()
 
     def create_widgets(self):
@@ -347,6 +348,16 @@ class ChatGUI(tk.Tk):
 
         ttk.Button(since_frame, text="Aplicar filtro", command=self.apply_since_filter).pack(side=tk.LEFT, padx=5)
         ttk.Button(since_frame, text="Resetar", command=self.reset_since).pack(side=tk.LEFT, padx=5)
+
+        limit_frame = ttk.Frame(self)
+        limit_frame.pack(pady=5, fill=tk.X)
+
+        ttk.Label(limit_frame, text="Limite de mensagens:").pack(side=tk.LEFT, padx=2)
+        self.limit_entry = ttk.Entry(limit_frame, width=5)
+        self.limit_entry.insert(0, "10")  # valor padrão
+        self.limit_entry.pack(side=tk.LEFT, padx=2)
+        ttk.Button(limit_frame, text="Aplicar limite", command=self.apply_limit).pack(side=tk.LEFT, padx=5)
+
 
         group_frame = ttk.Frame(self)
         group_frame.pack(pady=5)
@@ -380,6 +391,16 @@ class ChatGUI(tk.Tk):
             self.refresh_messages(initialLoad=True)
         except ValueError:
             messagebox.showwarning("Erro", "Formato de data/hora inválido! Use DD-MM-YYYY e HH:MM:SS")
+
+    def apply_limit(self):
+        try:
+            limit = int(self.limit_entry.get().strip())
+            if limit <= 0:
+                raise ValueError
+            self.limit_filter = limit
+            self.refresh_messages(initialLoad=True)
+        except ValueError:
+            messagebox.showwarning("Erro", "O limite deve ser um número inteiro positivo")
 
     def reset_since(self):
         self.since_filter = None
@@ -451,7 +472,7 @@ class ChatGUI(tk.Tk):
             return
         try:
             if initialLoad:
-                self.messages = self.client.get_messages(self.selected_group['id'], limit=10, since = self.since_filter)
+                self.messages = self.client.get_messages(self.selected_group['id'], limit=self.limit_filter, since = self.since_filter)
 
             all_messages = list(self.messages)
             for payload, _, group_id in self.client.pending_messages.values():
@@ -465,7 +486,7 @@ class ChatGUI(tk.Tk):
 
             all_messages.sort(key=lambda m: m.get('timestampClient', ''))
 
-            all_messages = all_messages[-10:]
+            all_messages = all_messages[-self.limit_filter:]
 
             self.chat_area.config(state='normal')
             self.chat_area.delete(1.0, tk.END)
