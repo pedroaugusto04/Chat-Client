@@ -294,9 +294,15 @@ class ChatClient:
         response.raise_for_status()
         return response.json()
 
-    def get_messages(self, group_id, limit=10):
+
+    def get_messages(self, group_id, limit=10, since=None):
         url = f"{BASE_URL}/groups/{group_id}/messages"
-        response = self.session.get(url, params={"limit": limit})
+        params = {"limit": limit}
+        if since:
+            if since.tzinfo is None:
+                since = since.replace(tzinfo=timezone.utc)
+            params["since"] = since.isoformat().replace('+00:00', 'Z')  # garante ISO válido
+        response = self.session.get(url, params=params)
         response.raise_for_status()
         return response.json()
 
@@ -314,6 +320,7 @@ class ChatGUI(tk.Tk):
         self.stress_test_popup = None
         self.groups = []
         self.messages = []
+        self.since_filter = None
         self.create_widgets()
 
     def create_widgets(self):
@@ -326,6 +333,20 @@ class ChatGUI(tk.Tk):
             command=self.client.spam_messages,
             bg="orange",
         ).pack(side=tk.LEFT, padx=5)
+
+        since_frame = ttk.Frame(self)
+        since_frame.pack(pady=5, fill=tk.X)
+
+        ttk.Label(since_frame, text="Data (DD-MM-YYYY):").pack(side=tk.LEFT, padx=2)
+        self.date_entry = ttk.Entry(since_frame, width=12)
+        self.date_entry.pack(side=tk.LEFT, padx=2)
+
+        ttk.Label(since_frame, text="Hora (HH:MM:SS):").pack(side=tk.LEFT, padx=2)
+        self.time_entry = ttk.Entry(since_frame, width=10)
+        self.time_entry.pack(side=tk.LEFT, padx=2)
+
+        ttk.Button(since_frame, text="Aplicar filtro", command=self.apply_since_filter).pack(side=tk.LEFT, padx=5)
+        ttk.Button(since_frame, text="Resetar", command=self.reset_since).pack(side=tk.LEFT, padx=5)
 
         group_frame = ttk.Frame(self)
         group_frame.pack(pady=5)
@@ -346,6 +367,25 @@ class ChatGUI(tk.Tk):
         self.msg_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
         ttk.Button(msg_frame, text="Enviar", command=self.send_message).pack(side=tk.LEFT)
 
+    def apply_since_filter(self):
+        date_str = self.date_entry.get().strip()
+        time_str = self.time_entry.get().strip()
+        if not date_str or not time_str:
+            messagebox.showwarning("Aviso", "Preencha data e hora para aplicar o filtro")
+            return
+        try:
+            dt = datetime.strptime(f"{date_str} {time_str}", "%d-%m-%Y %H:%M:%S")
+            dt = dt + timedelta(hours=3)
+            self.since_filter = dt.replace(tzinfo=timezone.utc)
+            self.refresh_messages(initialLoad=True)
+        except ValueError:
+            messagebox.showwarning("Erro", "Formato de data/hora inválido! Use DD-MM-YYYY e HH:MM:SS")
+
+    def reset_since(self):
+        self.since_filter = None
+        self.date_entry.delete(0, tk.END)
+        self.time_entry.delete(0, tk.END)
+        self.refresh_messages(initialLoad=True)
 
     def create_group(self):
         group_name = self.group_name.get().strip()
@@ -411,7 +451,7 @@ class ChatGUI(tk.Tk):
             return
         try:
             if initialLoad:
-                self.messages = self.client.get_messages(self.selected_group['id'], limit=10)
+                self.messages = self.client.get_messages(self.selected_group['id'], limit=10, since = self.since_filter)
 
             all_messages = list(self.messages)
             for payload, _, group_id in self.client.pending_messages.values():
@@ -433,7 +473,13 @@ class ChatGUI(tk.Tk):
 
             for m in all_messages:
                 ts_raw = m.get('timestampClient')
-                ts = datetime.fromisoformat(ts_raw).strftime("%H:%M:%S") if ts_raw else "??"
+                if ts_raw:
+                    dt = datetime.fromisoformat(ts_raw)
+                    # subtrai 3 horas
+                    dt_local = dt - timedelta(hours=3)
+                    ts = dt_local.strftime("%H:%M:%S")
+                else:
+                    ts = "??"
                 user_nick = m.get('userNickname', 'system')
                 text = m.get('text', '')
 
