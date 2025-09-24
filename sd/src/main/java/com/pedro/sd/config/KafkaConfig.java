@@ -2,11 +2,14 @@ package com.pedro.sd.config;
 
 import com.pedro.sd.models.DTO.MessageSendDTO;
 import com.pedro.sd.services.LogsService;
+import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
@@ -24,6 +27,9 @@ import java.util.Map;
 
 @Configuration
 public class KafkaConfig {
+
+    @Value(value = "${spring.kafka.bootstrap-servers}")
+    private String bootstrapAddress;
 
     private final LogsService logsService;
 
@@ -97,11 +103,32 @@ public class KafkaConfig {
     }
 
     @Bean
+    public KafkaAdmin kafkaAdmin() {
+        Map<String, Object> configs = new HashMap<>();
+        configs.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapAddress);
+        return new KafkaAdmin(configs);
+    }
+
+    @Bean
     public NewTopic topicChatMessages() {
         return TopicBuilder.name("chat-messages")
                 .partitions(5)
                 .replicas(1)
                 .compact()
                 .build();
+    }
+
+    @Bean
+    public ApplicationRunner runner(KafkaTemplate<String, MessageSendDTO> template) {
+        return args -> template.executeInTransaction(t -> {
+            MessageSendDTO warmupMessage = new MessageSendDTO();
+            warmupMessage.setText("warmup");
+            try {
+                t.send("chat-messages", "warmup", warmupMessage).get();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            return null;
+        });
     }
 }

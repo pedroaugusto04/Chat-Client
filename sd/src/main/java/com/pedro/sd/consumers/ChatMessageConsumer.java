@@ -39,6 +39,11 @@ public class ChatMessageConsumer {
     @Transactional("kafkaTransactionManager")
     public void consume(ConsumerRecord<String, MessageSendDTO> messageRecord, Acknowledgment ack) {
 
+        if ("warmup".equals(messageRecord.key()) || "warmup".equals(messageRecord.value().getText())) {
+            ack.acknowledge();
+            return;
+        }
+
         MessageSendDTO messageDTO = messageRecord.value();
         Integer groupId = Integer.valueOf(messageRecord.key());
 
