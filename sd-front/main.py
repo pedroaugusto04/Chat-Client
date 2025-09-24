@@ -8,7 +8,6 @@ from datetime import datetime, timedelta, timezone
 import uuid
 import json
 import websocket
-import numpy as np
 
 BASE_URL = "http://127.0.0.1"
 WS_URL = "ws://127.0.0.1/chat"

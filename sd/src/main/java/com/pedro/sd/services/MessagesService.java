@@ -1,20 +1,12 @@
 package com.pedro.sd.services;
 
-import com.pedro.sd.models.DTO.MessageResponseDTO;
 import com.pedro.sd.models.DTO.MessageSendDTO;
 import com.pedro.sd.models.Entities.Group;
 import com.pedro.sd.models.Entities.Message;
 import com.pedro.sd.models.Entities.User;
 import com.pedro.sd.repositories.MessagesRepository;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
-import java.util.Date;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class MessagesService {
@@ -51,34 +43,5 @@ public class MessagesService {
     public void publishMessageToKafka(Integer groupId, MessageSendDTO messageSendDTO) {
         kafkaTemplate.executeInTransaction(template ->
             template.send("chat-messages", groupId.toString(),messageSendDTO));
-    }
-
-
-    public List<MessageResponseDTO> getMessages(Integer groupId, Date since, Integer limit) {
-        Group group = this.groupsService.getGroup(groupId);
-
-        List<Message> messages;
-
-        if (since != null) {
-
-            OffsetDateTime sinceDateTime = OffsetDateTime.ofInstant(
-                    since.toInstant(),
-                    ZoneId.systemDefault()
-            );
-
-            messages = messagesRepository.findByGroupAndDateAfterOrderByDateDesc(
-                    group,
-                    sinceDateTime,
-                    PageRequest.of(0, limit));
-        } else {
-            messages = messagesRepository.findByGroupOrderByDateDesc(
-                    group,
-                    PageRequest.of(0, limit));
-        }
-
-       return messages.stream()
-        .map(m -> new MessageResponseDTO(m.getIdemKey(),m.getText(), m.getUser().getId(), m.getUser().getNickname(),m.getDate(),null))
-        .collect(Collectors.toList());
-
     }
 }

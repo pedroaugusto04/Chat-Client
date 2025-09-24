@@ -1,21 +1,19 @@
 package com.pedro.sd.controllers;
 
-import com.pedro.sd.models.DTO.MessageResponseDTO;
 import com.pedro.sd.models.DTO.MessageSendDTO;
 import com.pedro.sd.models.DTO.UserDTO;
 import com.pedro.sd.services.LogsService;
 import com.pedro.sd.services.MessagesService;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.time.OffsetDateTime;
-import java.util.Date;
-import java.util.List;
 
 
 
@@ -28,26 +26,6 @@ public class MessagesController {
     MessagesController(MessagesService messagesService, LogsService logsService, SimpMessagingTemplate messagingTemplate) {
         this.messagesService = messagesService;
         this.logsService = logsService;
-    }
-
-    @GetMapping("groups/{id}/messages")
-    public ResponseEntity<List<MessageResponseDTO>> getLastMessages(
-
-            @PathVariable("id") Integer groupId,
-            @RequestParam(value = "since", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Date since,
-            @RequestParam(value = "limit", defaultValue = "10") Integer limit) {
-
-        long startTime = System.currentTimeMillis();
-
-        this.logsService.log(groupId, "GET_MESSAGES", "Entrou no endpoint para recuperacao de mensagens do grupo");
-
-        List<MessageResponseDTO> messages = messagesService.getMessages(groupId, since, limit);
-
-        long latency = System.currentTimeMillis() - startTime;
-
-        this.logsService.log(messages, "GET_MESSAGES", "Recuperou com sucesso as mensagens do grupo " + groupId + " em " + latency + " ms");
-
-        return ResponseEntity.ok(messages);
     }
 
     @MessageMapping("/chat/{groupId}")
