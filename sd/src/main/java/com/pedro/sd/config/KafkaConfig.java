@@ -72,7 +72,6 @@ public class KafkaConfig {
         return new KafkaTransactionManager<>(producerFactory);
     }
 
-    // retry com backoff + jitter
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, MessageSendDTO> kafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, MessageSendDTO> factory =
@@ -81,20 +80,38 @@ public class KafkaConfig {
         factory.setConsumerFactory(consumerFactory());
         factory.setConcurrency(5);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        factory.setCommonErrorHandler(kafkaErrorHandler());
+        return factory;
+    }
 
+
+    // retry com backoff + jitter
+    @Bean
+    public DefaultErrorHandler kafkaErrorHandler() {
         long initialInterval = 500;
         double multiplier = 2.0;
         long maxJitter = 500;
 
         BackOff backOff = new BackOffWithJitter(initialInterval, multiplier, maxJitter);
 
-        DefaultErrorHandler errorHandler = new DefaultErrorHandler((record, exception) -> {
-            logsService.log(record.value(), "RETRY_MESSAGE",
-                    "Falha ao processar mensagem. Mantem na fila para uma nova tentativa de envio");
-        }, backOff);
+        DefaultErrorHandler handler = new DefaultErrorHandler(backOff);
 
-        factory.setCommonErrorHandler(errorHandler);
-        return factory;
+        // registra caada tentativa de retry
+        handler.setRetryListeners((record, ex, deliveryAttempt) -> {
+            long nextInterval = calculateNextInterval(initialInterval, multiplier, maxJitter, deliveryAttempt);
+            logsService.log(record.value(), "RETRY_ATTEMPT",
+                    "Falha ao processar mensagem. Tentativa: " + deliveryAttempt +
+                            ", Próxima mensagem: " + nextInterval +
+                            ", Exception: " + ex.getMessage());
+        });
+
+        return handler;
+    }
+
+    private long calculateNextInterval(long initial, double multiplier, long maxJitter, int attempt) {
+        double interval = initial * Math.pow(multiplier, attempt - 1);
+        long jitter = (long) (Math.random() * maxJitter);
+        return (long) interval + jitter;
     }
 
     @Bean
@@ -118,6 +135,7 @@ public class KafkaConfig {
                 .build();
     }
 
+    // warmup para evitar delay no envio da primeira mensagem
     @Bean
     public ApplicationRunner runner(KafkaTemplate<String, MessageSendDTO> template) {
         return args -> template.executeInTransaction(t -> {

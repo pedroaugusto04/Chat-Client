@@ -35,23 +35,23 @@ public class ChatMessageConsumer {
         this.messageLatencyMetrics = latencyMetrics;
     }
 
-    @KafkaListener(topics = "chat-messages", groupId = "${spring.kafka.consumer.group-id}")
+    @KafkaListener(topics = "chat-messages", groupId = "${spring.kafka.consumer.group-id}", id = "chat-messages-listener")
     @Transactional("kafkaTransactionManager")
     public void consume(ConsumerRecord<String, MessageSendDTO> messageRecord, Acknowledgment ack) {
-
-        if ("warmup".equals(messageRecord.key()) || "warmup".equals(messageRecord.value().getText())) {
-            ack.acknowledge();
-            return;
-        }
 
         MessageSendDTO messageDTO = messageRecord.value();
         Integer groupId = Integer.valueOf(messageRecord.key());
 
         long startTime = System.currentTimeMillis();
 
-        /* caso a mensagem com mesma chave de idempotencia ja tenha sido processada, nao salva novamente
-        */
+
         try {
+
+            if ("warmup".equals(messageRecord.key()) || "warmup".equals(messageRecord.value().getText())) {
+                ack.acknowledge();
+                return;
+            }
+
             saveMessage(groupId,messageDTO,startTime);
             messageDTO.setTimestampServer(OffsetDateTime.now(ZoneOffset.UTC));
             confirmMessageProcess(messageDTO,groupId);
@@ -60,6 +60,7 @@ public class ChatMessageConsumer {
             saveMetricsMessageEndpoint(messageDTO);
 
         } catch(DataIntegrityViolationException ex) {
+            // idempotencia -> mensagem ja processada nao eh persistida novamente
             this.logsService.log(messageDTO, "MESSAGE_ALREADY_PROCESSED", "Mensagem ja processada");
             messageDTO.setTimestampServer(OffsetDateTime.now(ZoneOffset.UTC));
             confirmMessageProcess(messageDTO,groupId);
