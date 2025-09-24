@@ -12,6 +12,8 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.OffsetDateTime;
 import java.util.Date;
 import java.util.List;
 
@@ -59,6 +61,8 @@ public class MessagesController {
                               @RequestBody MessageSendDTO messageDTO) throws InterruptedException {
 
         long startTime = System.currentTimeMillis();
+
+        messageDTO.setTimestampClient(OffsetDateTime.now()); 
 
         this.logsService.log(messageDTO, "SEND_MESSAGE_WS",
                 "Entrou no endpoint para envio de mensagem");

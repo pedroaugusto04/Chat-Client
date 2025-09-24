@@ -66,12 +66,12 @@ class ChatClient:
         def send_messages_loop(numSend):
             for _ in range(numSend):
                 self.send_message(str(uuid.uuid4()), group_id, "TESTE VAZÃO", nickname)
-                time.sleep(0.09)
+                time.sleep(0.05)
             if self.gui:
                 self.gui.enable_all_controls()
                 self.gui.close_stress_test_popup()
 
-        thread = threading.Thread(target=send_messages_loop, args=(110,), daemon=True)
+        thread = threading.Thread(target=send_messages_loop, args=(100,), daemon=True)
         thread.start()
 
     def _on_open(self, ws):

@@ -1,5 +1,6 @@
 package com.pedro.sd.consumers;
 
+import com.pedro.sd.metrics.MessageLatencyMetrics;
 import com.pedro.sd.models.DTO.MessageResponseDTO;
 import com.pedro.sd.models.DTO.MessageSendDTO;
 import com.pedro.sd.models.DTO.ProcessedMessageDTO;
@@ -13,6 +14,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
@@ -22,13 +24,15 @@ public class ChatMessageConsumer {
     private final MessagesService messagesService;
     private final LogsService logsService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final MessageLatencyMetrics messageLatencyMetrics;
 
     public ChatMessageConsumer(MessagesService messagesService,
                                LogsService logsService,
-                               SimpMessagingTemplate messagingTemplate) {
+                               SimpMessagingTemplate messagingTemplate, MessageLatencyMetrics latencyMetrics) {
         this.messagesService = messagesService;
         this.logsService = logsService;
         this.messagingTemplate = messagingTemplate;
+        this.messageLatencyMetrics = latencyMetrics;
     }
 
     @KafkaListener(topics = "chat-messages", groupId = "${spring.kafka.consumer.group-id}")
@@ -47,11 +51,17 @@ public class ChatMessageConsumer {
             messageDTO.setTimestampServer(OffsetDateTime.now(ZoneOffset.UTC));
             confirmMessageProcess(messageDTO,groupId);
             ack.acknowledge();
+
+            saveMetricsMessageEndpoint(messageDTO);
+
         } catch(DataIntegrityViolationException ex) {
             this.logsService.log(messageDTO, "MESSAGE_ALREADY_PROCESSED", "Mensagem ja processada");
             messageDTO.setTimestampServer(OffsetDateTime.now(ZoneOffset.UTC));
             confirmMessageProcess(messageDTO,groupId);
             ack.acknowledge();
+
+            saveMetricsMessageEndpoint(messageDTO);
+
         } catch(Exception ex){
             this.logsService.log(messageDTO, "ERROR", "Erro ao salvar mensagem no banco " + ex.getMessage());
             throw ex;
@@ -86,6 +96,16 @@ public class ChatMessageConsumer {
         if (userNickname != null && !userNickname.isEmpty()) {
             messagingTemplate.convertAndSend("/topic/acks." + userNickname,
                     new ProcessedMessageDTO(messageDTO.getIdemKey()));
+        }
+    }
+
+    public void saveMetricsMessageEndpoint(MessageSendDTO messageDTO) {
+        if (messageDTO.getTimestampClient() != null) {
+            Duration latency = Duration.between(
+                    messageDTO.getTimestampClient(),
+                    messageDTO.getTimestampServer()
+            );
+            messageLatencyMetrics.record(latency);
         }
     }
 }
