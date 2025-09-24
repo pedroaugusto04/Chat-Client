@@ -275,7 +275,7 @@ class ChatClient:
     def retry_loop(self):
         def loop():
             self.connect_user()
-            threading.Timer(5, loop).start()
+            threading.Timer(10, loop).start()
         loop()
 
     def create_user(self, nickname):

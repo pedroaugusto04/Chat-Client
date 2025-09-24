@@ -1,1 +1,0 @@
-O arquivo spring.conf abaixo eh um exemplo de configuracao que pode ser utilizada para o balanceamento de carga

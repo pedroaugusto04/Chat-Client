@@ -10,11 +10,10 @@ import org.springframework.web.socket.handler.WebSocketHandlerDecoratorFactory;
 import java.io.IOException;
 import java.util.LinkedList;
 
-
 @Component
 public class WebSocketConnectionLimitDecorator implements WebSocketHandlerDecoratorFactory {
 
-    // limite de conexoes websocket ( maximo total de 5 -> 4 conexoes ws persistentes + 1 http )
+    // limite de conexoes websocket ( maximo total de 5  ( 4 web socket + 1 http ) )
     private static final int MAX_CONNECTIONS = 4;
     private final LinkedList<WebSocketSession> sessions = new LinkedList<>();
 
