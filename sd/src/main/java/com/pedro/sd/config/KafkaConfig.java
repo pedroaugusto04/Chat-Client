@@ -96,7 +96,7 @@ public class KafkaConfig {
 
         DefaultErrorHandler handler = new DefaultErrorHandler(backOff);
 
-        // registra caada tentativa de retry
+        // registra cada tentativa de retry
         handler.setRetryListeners((record, ex, deliveryAttempt) -> {
             long nextInterval = calculateNextInterval(initialInterval, multiplier, maxJitter, deliveryAttempt);
             logsService.log(record.value(), "RETRY_ATTEMPT",
