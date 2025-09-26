@@ -91,6 +91,7 @@ class ChatClient:
         self.gui.show_reconnect_modal()
 
     def _on_error(self, ws, error):
+        print(error)
         self.connected = False
         self.is_connecting = False
         self._on_ws_error(str(error))
@@ -427,6 +428,7 @@ class ChatGUI(tk.Tk):
             for g in self.groups:
                 self.groups_list.insert(tk.END, f"Grupo - {g['name']}")
         except Exception as e:
+            print(e)
             messagebox.showwarning("Erro","Não foi possível recuperar os grupos")
 
     def on_group_select(self, event):
