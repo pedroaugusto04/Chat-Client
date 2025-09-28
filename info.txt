@@ -1,0 +1,13 @@
+Controle de número de conexões simultâneas (>5).
+
+-> Limitado via nginx
+
+Latência P95 <= 150 ms em rede local.
+
+Possibilitar vazão superior a 100 mensagens/min.
+
+Possibilitar disponibilidade do servidor >= 99%.
+
+-> Nginx, kafka ( persistencia em disco )
+
+Gerar logs de requisições, erros, latência.

@@ -4,10 +4,10 @@ x-spring-base: &spring-base
   depends_on:
     kafka:
       condition: service_healthy
-    mysql:
+    postgres:
       condition: service_healthy
   environment:
-    SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/db_sd
+    SPRING_DATASOURCE_URL: jdbc:postgresql://127.0.0.1:5432/db_sd
     SPRING_DATASOURCE_USERNAME: root
     SPRING_DATASOURCE_PASSWORD: root
     SPRING_KAFKA_BOOTSTRAP_SERVERS: 127.0.0.1:9092
@@ -17,7 +17,7 @@ services:
     <<: *spring-base
     container_name: spring-app1
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/db_sd
+      SPRING_DATASOURCE_URL: jdbc:postgresql://127.0.0.1:5432/db_sd
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
       SPRING_KAFKA_BOOTSTRAP_SERVERS: 127.0.0.1:9092
@@ -34,7 +34,7 @@ services:
     <<: *spring-base
     container_name: spring-app2
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/db_sd
+      SPRING_DATASOURCE_URL: jdbc:postgresql://127.0.0.1:5432/db_sd
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
       SPRING_KAFKA_BOOTSTRAP_SERVERS: 127.0.0.1:9092
@@ -51,7 +51,7 @@ services:
     <<: *spring-base
     container_name: spring-app3
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/db_sd
+      SPRING_DATASOURCE_URL: jdbc:postgresql://127.0.0.1:5432/db_sd
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
       SPRING_KAFKA_BOOTSTRAP_SERVERS: 127.0.0.1:9092
@@ -64,19 +64,18 @@ services:
       retries: 5
     restart: always
 
-  mysql:
-    image: mysql:8.0
-    container_name: mysql
+  postgres:
+    image: postgres:16
+    container_name: postgres
     network_mode: host
-    command: --bind-address=0.0.0.0
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: db_sd
-      MYSQL_ROOT_HOST: '%'
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: db_sd
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      test: ["CMD-SHELL", "pg_isready -U root -d db_sd -h 127.0.0.1"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -163,4 +162,4 @@ services:
     restart: always
 
 volumes:
-  mysql_data:
+  postgres_data:
