@@ -1,0 +1,37 @@
+Sistema distribuído cliente-servidor para chat
+
+---------------------------------------------------------------------------------------------------
+Requisitos Funcionais:
+
+
+Uma sala/grupo.
+
+Postar mensagens em sala.
+
+Ler mensagens da sala com cursor temporal.
+
+Postagem anônima, sem autenticação, mas com nome de participante (nickname).
+
+Idempotência em post.
+
+---------------------------------------------------------------------------------------------------
+
+Requisitos Não Funcionais:
+
+Controle de número de conexões simultâneas (>5).
+
+-> Limitado via nginx
+
+Latência P95 <= 150 ms em rede local.
+
+Possibilitar vazão superior a 100 mensagens/min.
+
+Possibilitar disponibilidade do servidor >= 99%.
+
+-> Nginx, kafka ( persistencia em disco )
+
+Gerar logs de requisições, erros, latência.
+
+---------------------------------------------------------------------------------------------------
+
+* Retentativas em caso de falha ( backoff + jitter )

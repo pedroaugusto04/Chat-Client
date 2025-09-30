@@ -37,7 +37,7 @@ public class ChatMessageConsumer {
 
     @KafkaListener(topics = "chat-messages", groupId = "${spring.kafka.consumer.group-id}", id = "chat-messages-listener")
     @Transactional("kafkaTransactionManager")
-    public void consume(ConsumerRecord<String, MessageSendDTO> messageRecord, Acknowledgment ack) {
+    public void consume(ConsumerRecord<String, MessageSendDTO> messageRecord, Acknowledgment ack) throws InterruptedException {
 
         MessageSendDTO messageDTO = messageRecord.value();
         Integer groupId = Integer.valueOf(messageRecord.key());
