@@ -136,8 +136,11 @@ class ChatClient:
         elif command == "ERROR":
             self._on_ws_error(body)
 
-    def connect_user(self):
+    def connect_user(self,retry=False):
         if self.connected or self.is_connecting:
+            return
+
+        if retry and not self.pending_messages:
             return
 
         self.is_connecting = True
@@ -274,7 +277,7 @@ class ChatClient:
 
     def retry_loop(self):
         def loop():
-            self.connect_user()
+            self.connect_user(True)
             threading.Timer(10 + random.uniform(0.5, 10), loop).start() # tenta reconectar de 10 em 10s + jitter
         loop()
 
