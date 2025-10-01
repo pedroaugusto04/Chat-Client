@@ -18,6 +18,7 @@ class ChatClient:
         self.session = requests.Session()
         self.session.headers.update({"Content-Type": "application/json"})
         self.pending_messages = {}
+        self.send_message_when_connected = {}
         self.gui = None
 
         self.ws_client = None
@@ -112,6 +113,21 @@ class ChatClient:
 
             print("Cliente Conectado")
 
+            # envia as mensagens cuja tentativa foi feita mas o cliente estava desconectado
+            for idemKey, (payload, messageInterval, group_id, timestampClient) in list(
+                    self.send_message_when_connected.items()):
+                self.send_message(
+                    idemKey,
+                    group_id,
+                    payload["text"],
+                    payload["userNickname"],
+                    timestampClient,
+                    payload.get("isRetry", False),
+                    messageInterval
+                )
+                del self.send_message_when_connected[idemKey]
+
+
             # recupera as mensagens perdidas pelo servidor
             if self.gui:
                 self.gui.after(0, self.gui.refresh_messages, True)
@@ -123,15 +139,16 @@ class ChatClient:
 
             if self.gui:
                 self.gui.after(0,self.gui.refresh_groups)
-            if self.initial_nickname:
-                self.subscribe(f"/topic/acks.{self.initial_nickname}", self._on_ack_message)
             if self.initial_group_id:
                 self._switch_group_subscription(self.initial_group_id, self.initial_nickname)
 
+
         elif command == "MESSAGE":
-            sub_id = headers.get('subscription')
-            if sub_id in self.subscriptions:
-                self.subscriptions[sub_id](body)
+            # trata na funcao _on_group_message
+            sub_id = headers.get("subscription")
+            callback = self.subscriptions.get(sub_id)
+            if callback:
+                callback(body)
 
         elif command == "ERROR":
             self._on_ws_error(body)
@@ -188,10 +205,12 @@ class ChatClient:
 
     def _switch_group_subscription(self, group_id, nickname):
         if not self.current_group_sub_id:
-            self.current_group_sub_id = self.subscribe(f"/topic/messages.{group_id}", self._on_group_message)
+            self.subscribe(f"/topic/messages.{group_id}", self._on_group_message)
+            self.current_group_sub_id = group_id
         if self.current_group_sub_id != group_id:
             self.unsubscribe(self.current_group_sub_id)
-            self.current_group_sub_id = self.subscribe(f"/topic/messages.{group_id}", self._on_group_message)
+            self.subscribe(f"/topic/messages.{group_id}", self._on_group_message)
+            self.current_group_sub_id = group_id
 
         payload = {"nickname": nickname, "timestampClient": datetime.now(timezone.utc).isoformat()}
         destination = f"/app/chat/{group_id}"
@@ -217,9 +236,6 @@ class ChatClient:
 
         if self.gui:
             self.gui.after(0, self.gui.refresh_messages,False)
-
-    def _on_ack_message(self, body):
-        pass
 
     def _on_ws_error(self, error_message):
         self.connected = False
@@ -255,8 +271,12 @@ class ChatClient:
             "timestampClient": timestampClient
         }
 
+
         if not self.connected:
+            # adiciona a mensagem para envio somente quando conectar ( proceso assincrono )
+            self.send_message_when_connected[idemKey] = (payload, messageInterval, group_id, timestampClient)
             self.connect_user()
+            return
 
         self.pending_messages[idemKey] = (payload, messageInterval, group_id, timestampClient)
         self._switch_group_subscription(group_id, nickname)
