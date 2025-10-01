@@ -136,11 +136,8 @@ class ChatClient:
         elif command == "ERROR":
             self._on_ws_error(body)
 
-    def connect_user(self,retry=False):
+    def connect_user(self):
         if self.connected or self.is_connecting:
-            return
-
-        if retry and not self.pending_messages:
             return
 
         self.is_connecting = True
@@ -232,30 +229,36 @@ class ChatClient:
         if idemKey not in self.pending_messages:
             return
 
-        payload, interval, group_id = self.pending_messages[idemKey]
+        payload, interval, group_id, timestamp_client = self.pending_messages[idemKey]
         text, nickname = payload['text'], payload['userNickname']
 
-        self.send_message(idemKey, group_id, text, nickname, True, interval)
+        self.send_message(idemKey, group_id, text, nickname, timestamp_client,True, interval)
 
         new_interval = min(interval * 2 * random.uniform(0.5, 1.5), 600)
 
-        self.pending_messages[idemKey] = (payload, new_interval, group_id)
+        self.pending_messages[idemKey] = (payload, new_interval, group_id, timestamp_client)
 
         threading.Timer(new_interval, lambda: self._send_with_backoff(idemKey)).start()
 
 
-    def send_message(self, idemKey, group_id, text, nickname, isRetry=False, messageInterval=None):
+    def send_message(self, idemKey, group_id, text, nickname, timestamp_client=None, isRetry=False, messageInterval=None):
         if messageInterval is None:
             messageInterval = self.base_interval
+
+        timestampClient = timestamp_client if timestamp_client else datetime.now(timezone.utc).isoformat()
 
         payload = {
             "idemKey": idemKey,
             "text": text,
             "userNickname": nickname,
             "isRetry": isRetry,
+            "timestampClient": timestampClient
         }
 
-        self.pending_messages[idemKey] = (payload, messageInterval, group_id)
+        if not self.connected:
+            self.connect_user()
+
+        self.pending_messages[idemKey] = (payload, messageInterval, group_id, timestampClient)
         self._switch_group_subscription(group_id, nickname)
 
         if self.gui:
@@ -263,7 +266,6 @@ class ChatClient:
 
         def send_async():
             try:
-                payload["timestampClient"] = datetime.now(timezone.utc).isoformat()
                 url = f"{BASE_URL}/chat/{group_id}/messages"
                 self.session.post(url, json=payload)
             except:
@@ -275,11 +277,6 @@ class ChatClient:
             # tentativas de reenvio com backoff + jitter
             threading.Timer(messageInterval, lambda: self._send_with_backoff(idemKey)).start()
 
-    def retry_loop(self):
-        def loop():
-            self.connect_user(True)
-            threading.Timer(10 + random.uniform(0.5, 10), loop).start() # tenta reconectar de 10 em 10s + jitter
-        loop()
 
     def create_user(self, nickname):
         url = f"{BASE_URL}/nick"
@@ -468,7 +465,8 @@ class ChatGUI(tk.Tk):
         try:
             self.client.send_message(str(uuid.uuid4()), self.selected_group['id'], text, self.nickname)
             self.msg_entry.delete(0, tk.END)
-        except:
+        except Exception as e:
+            print(e)
             messagebox.showwarning("Erro","Não foi possível enviar mensagem")
 
     def refresh_messages(self, initialLoad=False):
@@ -479,7 +477,7 @@ class ChatGUI(tk.Tk):
                 self.messages = self.client.get_messages(self.selected_group['id'], limit=self.limit_filter, since = self.since_filter)
 
             all_messages = list(self.messages)
-            for payload, _, group_id in self.client.pending_messages.values():
+            for payload, _, group_id,_ in self.client.pending_messages.values():
                 if group_id == self.selected_group['id']:
                     all_messages.append(payload)
 
@@ -516,7 +514,8 @@ class ChatGUI(tk.Tk):
 
             self.chat_area.config(state='disabled')
             self.chat_area.yview(tk.END)
-        except:
+        except Exception as e:
+            print(e)
             messagebox.showwarning("Erro", "Não foi possível recuperar mensagens")
 
     def show_reconnect_modal(self):
@@ -603,5 +602,4 @@ if __name__ == "__main__":
     app = ChatGUI(client)
     client.gui = app
     client.connect_user()
-    client.retry_loop()
     app.mainloop()
