@@ -53,7 +53,7 @@ public class ChatMessageConsumer {
             }
 
             saveMessage(groupId,messageDTO,startTime);
-            messageDTO.setTimestampServer(OffsetDateTime.now(ZoneOffset.UTC));
+            messageDTO.setTimestampEndServer(OffsetDateTime.now(ZoneOffset.UTC));
             confirmMessageProcess(messageDTO,groupId);
             ack.acknowledge();
 
@@ -62,8 +62,7 @@ public class ChatMessageConsumer {
         } catch(DataIntegrityViolationException ex) {
             // idempotencia -> mensagem ja processada nao eh persistida novamente
             this.logsService.log(messageDTO, "MESSAGE_ALREADY_PROCESSED", "Mensagem ja processada");
-            messageDTO.setTimestampServer(OffsetDateTime.now(ZoneOffset.UTC));
-            confirmMessageProcess(messageDTO,groupId);
+            messageDTO.setTimestampEndServer(OffsetDateTime.now(ZoneOffset.UTC));
             ack.acknowledge();
 
             saveMetricsMessageEndpoint(messageDTO);
@@ -94,8 +93,7 @@ public class ChatMessageConsumer {
                         messageDTO.getText(),
                         null,
                         messageDTO.getUserNickname(),
-                        messageDTO.getTimestampClient(),
-                        messageDTO.getTimestampServer()));
+                        messageDTO.getTimestampClient()));
 
         // confirma o processamento da mensagem
         String userNickname = messageDTO.getUserNickname();
@@ -108,8 +106,8 @@ public class ChatMessageConsumer {
     public void saveMetricsMessageEndpoint(MessageSendDTO messageDTO) {
         if (messageDTO.getTimestampClient() != null) {
             Duration latency = Duration.between(
-                    messageDTO.getTimestampClient(),
-                    messageDTO.getTimestampServer()
+                    messageDTO.getTimestampStartServer(),
+                    messageDTO.getTimestampEndServer()
             );
             messageLatencyMetrics.record(latency);
         }

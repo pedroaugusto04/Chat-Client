@@ -63,18 +63,18 @@ public class GroupsService {
                     ZoneId.systemDefault()
             );
 
-            messages = messagesRepository.findByGroupAndDateAfterOrderByDateDesc(
+            messages = messagesRepository.findByGroupAndClientDateAfterOrderByClientDateDesc(
                     group,
                     sinceDateTime,
                     PageRequest.of(0, limit));
         } else {
-            messages = messagesRepository.findByGroupOrderByDateDesc(
+            messages = messagesRepository.findByGroupOrderByClientDateDesc(
                     group,
                     PageRequest.of(0, limit));
         }
 
         return messages.stream()
-                .map(m -> new MessageResponseDTO(m.getIdemKey(),m.getText(), m.getUser().getId(), m.getUser().getNickname(),m.getDate(),null))
+                .map(m -> new MessageResponseDTO(m.getIdemKey(),m.getText(), m.getUser().getId(), m.getUser().getNickname(),m.getClientDate()))
                 .collect(Collectors.toList());
     }
 }

@@ -15,13 +15,13 @@ public interface MessagesRepository extends JpaRepository<Message, Integer> {
 
     Optional<Message> findByIdemKey(String idemKey);
 
-    Optional<Message> findByIdemKeyAndDateBetween(
+    Optional<Message> findByIdemKeyAndClientDateBetween(
             String idemKey,
             OffsetDateTime start,
             OffsetDateTime end
     );
 
-    List<Message> findByGroupAndDateAfterOrderByDateDesc(Group group, OffsetDateTime since, Pageable pageable);
+    List<Message> findByGroupAndClientDateAfterOrderByClientDateDesc(Group group, OffsetDateTime since, Pageable pageable);
 
-    List<Message> findByGroupOrderByDateDesc(Group group, Pageable pageable);
+    List<Message> findByGroupOrderByClientDateDesc(Group group, Pageable pageable);
 }

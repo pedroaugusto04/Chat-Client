@@ -1,6 +1,7 @@
 package com.pedro.sd.models.Entities;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.OffsetDateTime;
 
@@ -27,16 +28,20 @@ public class Message {
     private Group group;
 
     @Column(nullable = false)
-    private OffsetDateTime date;
+    private OffsetDateTime clientDate;
+
+    @Column(nullable = false)
+    @CreationTimestamp
+    private OffsetDateTime serverDate;
 
     public Message() {}
 
-    public Message(String text, User user, Group group, String idemKey, OffsetDateTime date) {
+    public Message(String text, User user, Group group, String idemKey, OffsetDateTime clientDate) {
         this.text = text;
         this.user = user;
         this.group = group;
         this.idemKey = idemKey;
-        this.date = date;
+        this.clientDate = clientDate;
     }
 
     public Integer getId() {
@@ -71,19 +76,27 @@ public class Message {
         this.group = group;
     }
 
-    public OffsetDateTime getDate() {
-        return date;
-    }
-
-    public void setDate(OffsetDateTime date) {
-        this.date = date;
-    }
-
     public String getIdemKey() {
         return idemKey;
     }
 
     public void setIdemKey(String idemKey) {
         this.idemKey = idemKey;
+    }
+
+    public OffsetDateTime getClientDate() {
+        return clientDate;
+    }
+
+    public void setClientDate(OffsetDateTime clientDate) {
+        this.clientDate = clientDate;
+    }
+
+    public OffsetDateTime getServerDate() {
+        return serverDate;
+    }
+
+    public void setServerDate(OffsetDateTime serverDate) {
+        this.serverDate = serverDate;
     }
 }

@@ -7,14 +7,13 @@ import com.pedro.sd.services.MessagesService;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.OffsetDateTime;
-
+import java.time.ZoneOffset;
 
 
 @RestController
@@ -23,7 +22,7 @@ public class MessagesController {
     private MessagesService messagesService;
     private LogsService logsService;
 
-    MessagesController(MessagesService messagesService, LogsService logsService, SimpMessagingTemplate messagingTemplate) {
+    MessagesController(MessagesService messagesService, LogsService logsService) {
         this.messagesService = messagesService;
         this.logsService = logsService;
     }
@@ -40,7 +39,7 @@ public class MessagesController {
 
         long startTime = System.currentTimeMillis();
 
-        messageDTO.setTimestampClient(OffsetDateTime.now()); 
+        messageDTO.setTimestampStartServer(OffsetDateTime.now(ZoneOffset.UTC));
 
         this.logsService.log(messageDTO, "SEND_MESSAGE_WS",
                 "Entrou no endpoint para envio de mensagem");

@@ -9,16 +9,18 @@ public class MessageSendDTO {
     private String userNickname;
     private OffsetDateTime timestampClient;
     private boolean isRetry;
-    private OffsetDateTime timestampServer;
+    private OffsetDateTime timestampStartServer;
+    private OffsetDateTime timestampEndServer;
 
     public MessageSendDTO(String idemKey, String text, String userNickname,
-                          OffsetDateTime timestampClient, boolean isRetry, OffsetDateTime timestampServer) {
+                          OffsetDateTime timestampClient, boolean isRetry, OffsetDateTime timestampStartServer,OffsetDateTime timestampEndServer) {
         this.idemKey = idemKey;
         this.text = text;
         this.userNickname = userNickname;
         this.timestampClient = timestampClient;
         this.isRetry = isRetry;
-        this.timestampServer = timestampServer;
+        this.timestampStartServer = timestampStartServer;
+        this.timestampEndServer = timestampEndServer;
     }
 
     public MessageSendDTO() {}
@@ -47,6 +49,19 @@ public class MessageSendDTO {
     public boolean isRetry() { return isRetry; }
     public void setRetry(boolean retry) { isRetry = retry; }
 
-    public OffsetDateTime getTimestampServer() { return timestampServer; }
-    public void setTimestampServer(OffsetDateTime timestampServer) { this.timestampServer = timestampServer; }
+    public OffsetDateTime getTimestampStartServer() {
+        return timestampStartServer;
+    }
+
+    public void setTimestampStartServer(OffsetDateTime timestampStartServer) {
+        this.timestampStartServer = timestampStartServer;
+    }
+
+    public OffsetDateTime getTimestampEndServer() {
+        return timestampEndServer;
+    }
+
+    public void setTimestampEndServer(OffsetDateTime timestampEndServer) {
+        this.timestampEndServer = timestampEndServer;
+    }
 }
