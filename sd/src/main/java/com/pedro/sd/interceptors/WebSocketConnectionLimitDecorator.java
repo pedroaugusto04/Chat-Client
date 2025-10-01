@@ -78,9 +78,10 @@ public class WebSocketConnectionLimitDecorator implements WebSocketHandlerDecora
         };
     }
 
-    @Scheduled(fixedRate = 5000) // roda de 5 em 5 segundos para verificar os clientes que precisam ser desconectados
+    @Scheduled(fixedRate = 1000) // roda de segundo em segundo para verificar os clientes que precisam ser desconectados ( >= 5 min sem enviar msg )
     public void checkInactiveSessions() {
         synchronized (sessions) {
+
             for (WebSocketSession session : new LinkedList<>(sessions)) {
                 LocalDateTime lastMessage = lastMessagesMap.get(session.getId());
                 if (lastMessage != null &&

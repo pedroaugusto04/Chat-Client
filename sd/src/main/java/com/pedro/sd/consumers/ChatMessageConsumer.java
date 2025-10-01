@@ -3,7 +3,6 @@ package com.pedro.sd.consumers;
 import com.pedro.sd.metrics.MessageLatencyMetrics;
 import com.pedro.sd.models.DTO.MessageResponseDTO;
 import com.pedro.sd.models.DTO.MessageSendDTO;
-import com.pedro.sd.models.DTO.ProcessedMessageDTO;
 import com.pedro.sd.services.LogsService;
 import com.pedro.sd.services.MessagesService;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -63,6 +62,7 @@ public class ChatMessageConsumer {
             // idempotencia -> mensagem ja processada nao eh persistida novamente
             this.logsService.log(messageDTO, "MESSAGE_ALREADY_PROCESSED", "Mensagem ja processada");
             messageDTO.setTimestampEndServer(OffsetDateTime.now(ZoneOffset.UTC));
+            confirmMessageProcess(messageDTO,groupId);
             ack.acknowledge();
 
             saveMetricsMessageEndpoint(messageDTO);
@@ -94,13 +94,6 @@ public class ChatMessageConsumer {
                         null,
                         messageDTO.getUserNickname(),
                         messageDTO.getTimestampClient()));
-
-        // confirma o processamento da mensagem
-        String userNickname = messageDTO.getUserNickname();
-        if (userNickname != null && !userNickname.isEmpty()) {
-            messagingTemplate.convertAndSend("/topic/acks." + userNickname,
-                    new ProcessedMessageDTO(messageDTO.getIdemKey()));
-        }
     }
 
     public void saveMetricsMessageEndpoint(MessageSendDTO messageDTO) {
