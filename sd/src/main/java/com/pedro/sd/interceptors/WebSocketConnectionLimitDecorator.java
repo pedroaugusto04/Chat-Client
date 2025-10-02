@@ -49,6 +49,9 @@ public class WebSocketConnectionLimitDecorator implements WebSocketHandlerDecora
                     // conecta a nova
                     sessions.add(session);
                     logsService.log(session, "CONNECT", "CONEXAO MAIS RECENTE ABERTA");
+
+                    LocalDateTime now = LocalDateTime.now();
+                    lastMessagesMap.put(session.getId(), now);
                 }
                 super.afterConnectionEstablished(session);
             }

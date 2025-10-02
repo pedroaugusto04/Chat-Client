@@ -449,7 +449,6 @@ class ChatGUI(tk.Tk):
                 self.groups_list.insert(tk.END, f"Grupo - {g['name']}")
         except Exception as e:
             print(e)
-            messagebox.showwarning("Erro","Não foi possível recuperar os grupos")
 
     def on_group_select(self, event):
         selection = event.widget.curselection()
@@ -536,7 +535,6 @@ class ChatGUI(tk.Tk):
             self.chat_area.yview(tk.END)
         except Exception as e:
             print(e)
-            messagebox.showwarning("Erro", "Não foi possível recuperar mensagens")
 
     def show_reconnect_modal(self):
         if self.reconnect_popup or client.connected:
