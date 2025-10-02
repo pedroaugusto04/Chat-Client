@@ -89,7 +89,6 @@ class ChatClient:
         self.subscriptions.clear()
         self.current_group_sub_id = None
         print("Cliente Desconectado")
-        self.gui.show_reconnect_modal()
 
     def _on_error(self, ws, error):
         print(error)
@@ -535,35 +534,6 @@ class ChatGUI(tk.Tk):
             self.chat_area.yview(tk.END)
         except Exception as e:
             print(e)
-
-    def show_reconnect_modal(self):
-        if self.reconnect_popup or client.connected:
-            return
-
-        self.reconnect_popup = tk.Toplevel(self)
-        self.reconnect_popup.title("Aviso")
-        self.reconnect_popup.transient(self)  # mantém acima da janela principal
-        self.reconnect_popup.protocol("WM_DELETE_WINDOW", lambda: None)
-
-        width, height = 300, 80
-
-        parent_x = self.winfo_x()
-        parent_y = self.winfo_y()
-        parent_width = self.winfo_width()
-        parent_height = self.winfo_height()
-
-        x = parent_x + (parent_width - width) // 2
-        y = parent_y + (parent_height - height) // 2
-
-        self.reconnect_popup.geometry(f"{width}x{height}+{x}+{y}")
-
-        tk.Label(
-            self.reconnect_popup,
-            text="Conexão Perdida. Tentando Reconectar...",
-            fg="white",
-            bg="orange",
-            font=("Arial", 12)
-        ).pack(expand=True, fill=tk.BOTH)
 
     def highlight_selected_group(self):
         self.groups_list.selection_clear(0, tk.END)
