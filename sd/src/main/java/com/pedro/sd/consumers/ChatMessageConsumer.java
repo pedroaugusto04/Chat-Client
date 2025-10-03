@@ -39,7 +39,6 @@ public class ChatMessageConsumer {
     public void consume(ConsumerRecord<String, MessageSendDTO> messageRecord, Acknowledgment ack) throws InterruptedException {
 
         MessageSendDTO messageDTO = messageRecord.value();
-        Integer groupId = Integer.valueOf(messageRecord.key());
 
         long startTime = System.currentTimeMillis();
 
@@ -51,9 +50,9 @@ public class ChatMessageConsumer {
                 return;
             }
 
-            saveMessage(groupId,messageDTO,startTime);
+            saveMessage(messageDTO,startTime);
             messageDTO.setTimestampEndServer(OffsetDateTime.now(ZoneOffset.UTC));
-            confirmMessageProcess(messageDTO,groupId);
+            confirmMessageProcess(messageDTO);
             ack.acknowledge();
 
             saveMetricsMessageEndpoint(messageDTO);
@@ -62,7 +61,7 @@ public class ChatMessageConsumer {
             // idempotencia -> mensagem ja processada nao eh persistida novamente
             this.logsService.log(messageDTO, "MESSAGE_ALREADY_PROCESSED", "Mensagem ja processada");
             messageDTO.setTimestampEndServer(OffsetDateTime.now(ZoneOffset.UTC));
-            confirmMessageProcess(messageDTO,groupId);
+            confirmMessageProcess(messageDTO);
             ack.acknowledge();
 
             saveMetricsMessageEndpoint(messageDTO);
@@ -74,10 +73,10 @@ public class ChatMessageConsumer {
     }
 
     @Transactional
-    public void saveMessage(Integer groupId, MessageSendDTO messageDTO,long startTime) {
+    public void saveMessage(MessageSendDTO messageDTO,long startTime) {
 
         // persiste a mensagem no banco
-        messagesService.sendMessage(groupId, messageDTO);
+        messagesService.sendMessage(messageDTO);
 
         long latency = System.currentTimeMillis() - startTime;
 
@@ -85,9 +84,9 @@ public class ChatMessageConsumer {
                 "Mensagem persistida no banco em " + latency + " ms");
     }
 
-    public void confirmMessageProcess(MessageSendDTO messageDTO, Integer groupId) {
+    public void confirmMessageProcess(MessageSendDTO messageDTO) {
         // envia a mensagem para os clientes ws conectados no grupo
-        messagingTemplate.convertAndSend("/topic/messages." + groupId,
+        messagingTemplate.convertAndSend("/topic/messages." + messageDTO.getGroupId(),
                 new MessageResponseDTO(
                         messageDTO.getIdemKey(),
                         messageDTO.getText(),

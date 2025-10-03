@@ -45,7 +45,7 @@ public class MessagesController {
                 "Entrou no endpoint para envio de mensagem");
 
         // tenta publicar a mensagem na fila
-        messagesService.publishMessageToKafka(groupId, messageDTO);
+        messagesService.publishMessageToKafka(messageDTO);
 
         long latency = System.currentTimeMillis() - startTime;
 

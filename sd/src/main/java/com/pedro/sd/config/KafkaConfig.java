@@ -2,10 +2,12 @@ package com.pedro.sd.config;
 
 import com.pedro.sd.models.DTO.MessageSendDTO;
 import com.pedro.sd.services.LogsService;
+import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,15 +15,16 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
-import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.*;
 import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.kafka.transaction.KafkaTransactionManager;
 import org.springframework.util.backoff.BackOff;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -78,23 +81,34 @@ public class KafkaConfig {
                 new ConcurrentKafkaListenerContainerFactory<>();
 
         factory.setConsumerFactory(consumerFactory());
-        factory.setConcurrency(5);
+        factory.setConcurrency(3);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
-        factory.setCommonErrorHandler(kafkaErrorHandler());
+        factory.setCommonErrorHandler(kafkaErrorHandler(kafkaTemplate()));
         return factory;
     }
 
 
+    @Bean
+    public KafkaTemplate<String, MessageSendDTO> kafkaTemplate() {
+        return new KafkaTemplate<>(producerFactory());
+    }
+
     // retry com backoff + jitter
     @Bean
-    public DefaultErrorHandler kafkaErrorHandler() {
+    public DefaultErrorHandler kafkaErrorHandler(KafkaTemplate<String, MessageSendDTO> kafkaTemplate) {
         long initialInterval = 500;
         double multiplier = 2.0;
         long maxJitter = 500;
+        int maxAttemps = 2;
 
-        BackOff backOff = new BackOffWithJitter(initialInterval, multiplier, maxJitter);
+        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
+                kafkaTemplate,
+                (record, ex) -> new TopicPartition(record.topic() + "-DLT", record.partition())
+        );
 
-        DefaultErrorHandler handler = new DefaultErrorHandler(backOff);
+        BackOff backOff = new BackOffWithJitter(initialInterval, multiplier, maxJitter,maxAttemps);
+
+        DefaultErrorHandler handler = new DefaultErrorHandler(recoverer,backOff);
 
         // registra cada tentativa de retry
         handler.setRetryListeners((record, ex, deliveryAttempt) -> {
@@ -114,10 +128,6 @@ public class KafkaConfig {
         return (long) interval + jitter;
     }
 
-    @Bean
-    public KafkaTemplate<String, MessageSendDTO> kafkaTemplate() {
-        return new KafkaTemplate<>(producerFactory());
-    }
 
     @Bean
     public KafkaAdmin kafkaAdmin() {
@@ -126,27 +136,52 @@ public class KafkaConfig {
         return new KafkaAdmin(configs);
     }
 
-    @Bean
-    public NewTopic topicChatMessages() {
-        return TopicBuilder.name("chat-messages")
-                .partitions(3)
-                .replicas(2)
-                .compact()
-                .build();
-    }
-
-    // warmup para evitar delay no envio da primeira mensagem
+    // criacao dos topicos/warmup para evitar delay no envio da primeira mensagem
     @Bean
     public ApplicationRunner runner(KafkaTemplate<String, MessageSendDTO> template) {
-        return args -> template.executeInTransaction(t -> {
-            MessageSendDTO warmupMessage = new MessageSendDTO();
-            warmupMessage.setText("warmup");
-            try {
-                t.send("chat-messages", "warmup", warmupMessage).get();
+        return args -> {
+            try (AdminClient adminClient = AdminClient.create(Map.of(
+                    AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapAddress))) {
+
+                NewTopic chatMessages = new NewTopic("chat-messages", 3, (short) 1);
+                NewTopic chatMessagesDLT = new NewTopic("chat-messages-DLT", 3, (short) 1);
+
+                adminClient.createTopics(Arrays.asList(chatMessages, chatMessagesDLT)).all().get();
+
+                logsService.log(null,"KAFKA_RUNNER","(WARMUP) Topicos KAFKA inicializados com sucesso");
             } catch (Exception e) {
-                throw new RuntimeException(e);
+                logsService.log(e,"KAFKA_RUNNER","(WARMUP) Erro durante o warmup para topicos KAFKA");
             }
-            return null;
-        });
+
+            // envia mensagem de warmup para cada um
+            try {
+                template.executeInTransaction(t -> {
+                    MessageSendDTO warmupMessage = new MessageSendDTO();
+                    warmupMessage.setText("warmup");
+
+                    try {
+                        t.send("chat-messages", null, warmupMessage).get();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    MessageSendDTO warmupDLTMessage = new MessageSendDTO();
+                    warmupDLTMessage.setText("warmup-DLT");
+
+                    try {
+                        t.send("chat-messages-DLT", null, warmupDLTMessage).get();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    return null;
+                });
+
+                logsService.log(null, "KAFKA_RUNNER", "(WARMUP) Mensagens WARMUP enviadas com sucesso para topicos KAFKA");
+
+            } catch (Exception e) {
+                logsService.log(e, "KAFKA_RUNNER", "(WARMUP) Erro no envio de mensagens WARMUP para topicos KAFKA");
+            }
+        };
     }
 }

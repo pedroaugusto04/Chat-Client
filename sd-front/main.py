@@ -226,7 +226,8 @@ class ChatClient:
             "text": data.get("text"),
             "userId": data.get("userId"),
             "userNickname": data.get("userNickname"),
-            "timestampClient": data.get("timestampClient")
+            "timestampClient": data.get("timestampClient"),
+            "groupId": data.get("groupId")
         }
 
         self.gui.messages.append(msg)
@@ -267,7 +268,8 @@ class ChatClient:
             "text": text,
             "userNickname": nickname,
             "isRetry": isRetry,
-            "timestampClient": timestampClient
+            "timestampClient": timestampClient,
+            "groupId": group_id
         }
 
 
@@ -395,6 +397,7 @@ class ChatGUI(tk.Tk):
         msg_frame.pack(pady=5, fill=tk.X)
         self.msg_entry = ttk.Entry(msg_frame)
         self.msg_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+        self.msg_entry.bind("<Return>", lambda event: self.send_message())
         ttk.Button(msg_frame, text="Enviar", command=self.send_message).pack(side=tk.LEFT)
 
     def apply_since_filter(self):

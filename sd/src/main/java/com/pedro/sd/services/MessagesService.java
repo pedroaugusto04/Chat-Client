@@ -27,11 +27,11 @@ public class MessagesService {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    public void sendMessage(Integer groupId, MessageSendDTO messageDTO) {
+    public void sendMessage(MessageSendDTO messageDTO) {
 
         User user = this.usersService.getUserByNickname(messageDTO.getUserNickname());
 
-        Group group = this.groupsService.getGroup(groupId);
+        Group group = this.groupsService.getGroup(messageDTO.getGroupId());
 
         Message message = new Message(messageDTO.getText(), user, group, messageDTO.getIdemKey(), messageDTO.getTimestampClient());
 
@@ -40,8 +40,8 @@ public class MessagesService {
         this.usersService.updateUserLastActivity(user, messageDTO.getTimestampClient());
     }
 
-    public void publishMessageToKafka(Integer groupId, MessageSendDTO messageSendDTO) {
+    public void publishMessageToKafka(MessageSendDTO messageSendDTO) {
         kafkaTemplate.executeInTransaction(template ->
-            template.send("chat-messages", groupId.toString(),messageSendDTO));
+            template.send("chat-messages", null,messageSendDTO));
     }
 }

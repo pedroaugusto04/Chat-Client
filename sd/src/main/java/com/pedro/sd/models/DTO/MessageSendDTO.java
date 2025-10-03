@@ -7,16 +7,18 @@ public class MessageSendDTO {
     private String idemKey;
     private String text;
     private String userNickname;
+    private Integer groupId;
     private OffsetDateTime timestampClient;
     private boolean isRetry;
     private OffsetDateTime timestampStartServer;
     private OffsetDateTime timestampEndServer;
 
-    public MessageSendDTO(String idemKey, String text, String userNickname,
+    public MessageSendDTO(String idemKey, String text, String userNickname, Integer groupId,
                           OffsetDateTime timestampClient, boolean isRetry, OffsetDateTime timestampStartServer,OffsetDateTime timestampEndServer) {
         this.idemKey = idemKey;
         this.text = text;
         this.userNickname = userNickname;
+        this.groupId = groupId;
         this.timestampClient = timestampClient;
         this.isRetry = isRetry;
         this.timestampStartServer = timestampStartServer;
@@ -63,5 +65,13 @@ public class MessageSendDTO {
 
     public void setTimestampEndServer(OffsetDateTime timestampEndServer) {
         this.timestampEndServer = timestampEndServer;
+    }
+
+    public Integer getGroupId() {
+        return groupId;
+    }
+
+    public void setGroupId(Integer groupId) {
+        this.groupId = groupId;
     }
 }
