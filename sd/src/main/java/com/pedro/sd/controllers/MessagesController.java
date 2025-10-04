@@ -6,7 +6,7 @@ import com.pedro.sd.services.LogsService;
 import com.pedro.sd.services.MessagesService;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.handler.annotation.SendTo;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,14 +21,15 @@ public class MessagesController {
 
     private MessagesService messagesService;
     private LogsService logsService;
+    private SimpMessagingTemplate messagingTemplate;
 
-    MessagesController(MessagesService messagesService, LogsService logsService) {
+    MessagesController(MessagesService messagesService, LogsService logsService, SimpMessagingTemplate messagingTemplate) {
         this.messagesService = messagesService;
         this.logsService = logsService;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @MessageMapping("/chat/{groupId}")
-    @SendTo("/topic/messages.{groupId}")
     public void connectToGroup(@DestinationVariable Long groupId, UserDTO userDTO) {
         this.logsService.log(userDTO, "GROUP_CONNECT", userDTO.nickname() + " conectou no grupo WEB SOCKET " + groupId);
     }
