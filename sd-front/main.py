@@ -26,9 +26,9 @@ class ChatClient:
         self.connected = False
         self.is_connecting = False
         self.subscriptions = {}
+        self.current_group_id = None
         self.current_group_sub_id = None
         self.initial_nickname = None
-        self.initial_group_id = None
 
         self.base_interval = 5
 
@@ -112,6 +112,9 @@ class ChatClient:
 
             print("Cliente Conectado")
 
+            if self.current_group_id:
+                self._switch_group_subscription(self.current_group_id, self.initial_nickname)
+
             # envia as mensagens cuja tentativa foi feita mas o cliente estava desconectado
             for idemKey, (payload, messageInterval, group_id, timestampClient) in list(
                     self.send_message_when_connected.items()):
@@ -138,8 +141,6 @@ class ChatClient:
 
             if self.gui:
                 self.gui.after(0,self.gui.refresh_groups)
-            if self.initial_group_id:
-                self._switch_group_subscription(self.initial_group_id, self.initial_nickname)
 
 
         elif command == "MESSAGE":
@@ -203,13 +204,15 @@ class ChatClient:
         self.stomp_transmit("UNSUBSCRIBE", headers)
 
     def _switch_group_subscription(self, group_id, nickname):
-        if not self.current_group_sub_id:
-            self.subscribe(f"/topic/messages.{group_id}", self._on_group_message)
-            self.current_group_sub_id = group_id
-        if self.current_group_sub_id != group_id:
+        if not self.connected:
+            return
+
+        if self.current_group_sub_id:
             self.unsubscribe(self.current_group_sub_id)
-            self.subscribe(f"/topic/messages.{group_id}", self._on_group_message)
-            self.current_group_sub_id = group_id
+            self.current_group_sub_id = None
+
+        self.current_group_sub_id = self.subscribe(f"/topic/messages.{group_id}", self._on_group_message)
+        self.current_group_id = group_id
 
         payload = {"nickname": nickname, "timestampClient": datetime.now(timezone.utc).isoformat()}
         destination = f"/app/chat/{group_id}"
