@@ -5,9 +5,9 @@ import com.pedro.sd.models.Entities.Group;
 import com.pedro.sd.models.Entities.Message;
 import com.pedro.sd.models.Entities.User;
 import com.pedro.sd.repositories.MessagesRepository;
-import jakarta.transaction.Transactional;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class MessagesService {
@@ -16,19 +16,17 @@ public class MessagesService {
     private com.pedro.sd.services.UsersService usersService;
     private com.pedro.sd.services.GroupsService groupsService;
     private final KafkaTemplate<String, MessageSendDTO> kafkaTemplate;
-    private LogsService logsService;
 
 
     MessagesService(com.pedro.sd.services.UsersService usersService, com.pedro.sd.services.GroupsService groupsService, MessagesRepository messagesRepository,
-                    LogsService logsService, KafkaTemplate<String, MessageSendDTO> kafkaTemplate) {
+                    KafkaTemplate<String, MessageSendDTO> kafkaTemplate) {
         this.messagesRepository = messagesRepository;
         this.usersService = usersService;
         this.groupsService = groupsService;
-        this.logsService = logsService;
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    @Transactional
+    @Transactional("transactionManager")
     public void sendMessage(MessageSendDTO messageDTO) {
 
         User user = this.usersService.getUserByNickname(messageDTO.getUserNickname());
