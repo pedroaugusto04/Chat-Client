@@ -21,7 +21,6 @@ import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
-import org.springframework.kafka.transaction.KafkaTransactionManager;
 import org.springframework.util.backoff.BackOff;
 
 import java.util.Arrays;
@@ -52,8 +51,6 @@ public class KafkaConfig {
         DefaultKafkaProducerFactory<String, MessageSendDTO> factory =
                 new DefaultKafkaProducerFactory<>(props);
 
-        // habilita transacao pra kafka + banco
-        factory.setTransactionIdPrefix("tx-");
         return factory;
     }
 
@@ -66,13 +63,6 @@ public class KafkaConfig {
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
         props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
         return new DefaultKafkaConsumerFactory<>(props);
-    }
-
-    // transacao unica kafka + banco
-    @Bean
-    public KafkaTransactionManager<String, MessageSendDTO> kafkaTransactionManager(
-            ProducerFactory<String, MessageSendDTO> producerFactory) {
-        return new KafkaTransactionManager<>(producerFactory);
     }
 
     @Bean
@@ -155,12 +145,12 @@ public class KafkaConfig {
 
             // envia mensagem de warmup para cada um
             try {
-                template.executeInTransaction(t -> {
+
                     MessageSendDTO warmupMessage = new MessageSendDTO();
                     warmupMessage.setText("warmup");
 
                     try {
-                        t.send("chat-messages", null, warmupMessage).get();
+                        template.send("chat-messages", null, warmupMessage).get();
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -169,13 +159,11 @@ public class KafkaConfig {
                     warmupDLTMessage.setText("warmup-DLT");
 
                     try {
-                        t.send("chat-messages-DLT", null, warmupDLTMessage).get();
+                        template.send("chat-messages-DLT", null, warmupDLTMessage).get();
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
 
-                    return null;
-                });
 
                 logsService.log(null, "KAFKA_RUNNER", "(WARMUP) Mensagens WARMUP enviadas com sucesso para topicos KAFKA");
 

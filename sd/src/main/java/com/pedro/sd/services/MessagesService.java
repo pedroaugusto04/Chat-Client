@@ -15,15 +15,13 @@ public class MessagesService {
     private com.pedro.sd.services.UsersService usersService;
     private com.pedro.sd.services.GroupsService groupsService;
     private final KafkaTemplate<String, MessageSendDTO> kafkaTemplate;
-    private LogsService logsService;
 
 
     MessagesService(com.pedro.sd.services.UsersService usersService, com.pedro.sd.services.GroupsService groupsService, MessagesRepository messagesRepository,
-                    LogsService logsService, KafkaTemplate<String, MessageSendDTO> kafkaTemplate) {
+                   KafkaTemplate<String, MessageSendDTO> kafkaTemplate) {
         this.messagesRepository = messagesRepository;
         this.usersService = usersService;
         this.groupsService = groupsService;
-        this.logsService = logsService;
         this.kafkaTemplate = kafkaTemplate;
     }
 
@@ -41,7 +39,6 @@ public class MessagesService {
     }
 
     public void publishMessageToKafka(MessageSendDTO messageSendDTO) {
-        kafkaTemplate.executeInTransaction(template ->
-            template.send("chat-messages", null,messageSendDTO));
+        kafkaTemplate.send("chat-messages", null, messageSendDTO);
     }
 }
