@@ -72,7 +72,6 @@ public class ChatMessageConsumer {
         }
     }
 
-    @Transactional
     public void saveMessage(MessageSendDTO messageDTO,long startTime) {
 
         // persiste a mensagem no banco

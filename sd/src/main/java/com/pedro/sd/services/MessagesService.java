@@ -5,6 +5,7 @@ import com.pedro.sd.models.Entities.Group;
 import com.pedro.sd.models.Entities.Message;
 import com.pedro.sd.models.Entities.User;
 import com.pedro.sd.repositories.MessagesRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +28,7 @@ public class MessagesService {
         this.kafkaTemplate = kafkaTemplate;
     }
 
+    @Transactional
     public void sendMessage(MessageSendDTO messageDTO) {
 
         User user = this.usersService.getUserByNickname(messageDTO.getUserNickname());
