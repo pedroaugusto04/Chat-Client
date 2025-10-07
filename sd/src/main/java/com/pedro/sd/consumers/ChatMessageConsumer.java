@@ -11,7 +11,6 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.OffsetDateTime;
@@ -70,7 +69,6 @@ public class ChatMessageConsumer {
         }
     }
 
-    @Transactional
     public void saveMessage(MessageSendDTO messageDTO,long startTime) {
 
         // persiste a mensagem no banco
