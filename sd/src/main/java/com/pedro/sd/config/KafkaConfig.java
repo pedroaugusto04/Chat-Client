@@ -24,6 +24,9 @@ import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.kafka.transaction.KafkaTransactionManager;
 import org.springframework.util.backoff.BackOff;
 
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.Statement;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -35,9 +38,11 @@ public class KafkaConfig {
     private String bootstrapAddress;
 
     private final LogsService logsService;
+    private final DataSource dataSource;
 
-    public KafkaConfig(LogsService logsService) {
+    public KafkaConfig(LogsService logsService,DataSource dataSource) {
         this.logsService = logsService;
+        this.dataSource = dataSource;
     }
 
     @Bean
@@ -136,10 +141,21 @@ public class KafkaConfig {
         return new KafkaAdmin(configs);
     }
 
-    // criacao dos topicos/warmup para evitar delay no envio da primeira mensagem
+    // warmup
     @Bean
     public ApplicationRunner runner(KafkaTemplate<String, MessageSendDTO> template) {
         return args -> {
+
+            // warmup banco
+            try (Connection conn = dataSource.getConnection();
+                 Statement stmt = conn.createStatement()) {
+                stmt.execute("SELECT 1");
+                logsService.log(null, "DB_WARMUP", "Conexao com o banco inicializada com sucesso");
+            } catch (Exception e) {
+                logsService.log(e, "DB_WARMUP", "Erro durante warmup do banco");
+            }
+
+            // warmup kafka
             try (AdminClient adminClient = AdminClient.create(Map.of(
                     AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapAddress))) {
 
