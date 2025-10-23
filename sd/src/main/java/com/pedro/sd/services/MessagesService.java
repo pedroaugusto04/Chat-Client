@@ -5,6 +5,7 @@ import com.pedro.sd.models.Entities.Group;
 import com.pedro.sd.models.Entities.Message;
 import com.pedro.sd.models.Entities.User;
 import com.pedro.sd.repositories.MessagesRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,14 +20,14 @@ public class MessagesService {
 
 
     MessagesService(com.pedro.sd.services.UsersService usersService, com.pedro.sd.services.GroupsService groupsService, MessagesRepository messagesRepository,
-                    KafkaTemplate<String, MessageSendDTO> kafkaTemplate) {
+                   KafkaTemplate<String, MessageSendDTO> kafkaTemplate) {
         this.messagesRepository = messagesRepository;
         this.usersService = usersService;
         this.groupsService = groupsService;
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    @Transactional("transactionManager")
+    @Transactional
     public void sendMessage(MessageSendDTO messageDTO) {
 
         User user = this.usersService.getUserByNickname(messageDTO.getUserNickname());
@@ -41,7 +42,6 @@ public class MessagesService {
     }
 
     public void publishMessageToKafka(MessageSendDTO messageSendDTO) {
-        kafkaTemplate.executeInTransaction(template ->
-            template.send("chat-messages", null,messageSendDTO));
+        kafkaTemplate.send("chat-messages", null, messageSendDTO);
     }
 }
