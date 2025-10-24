@@ -175,5 +175,40 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     restart: always
 
+  ignite-node1:
+    image: apacheignite/ignite:latest
+    container_name: ignite-node1
+    network_mode: host
+    environment:
+      - IGNITE_QUIET=false
+      - IGNITE_WORK_DIR=/ignite/node1
+      - CONFIG_URI=file:///ignite/config/ignite-node1.xml
+    volumes:
+      - ./ignite-node1.xml:/ignite/config/ignite-node1.xml:ro
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://127.0.0.1:8088/ignite?cmd=version" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  ignite-node2:
+    image: apacheignite/ignite:latest
+    container_name: ignite-node2
+    network_mode: host
+    environment:
+      - IGNITE_QUIET=false
+      - IGNITE_WORK_DIR=/ignite/node2
+      - CONFIG_URI=file:///ignite/config/ignite-node2.xml
+    volumes:
+      - ./ignite-node2.xml:/ignite/config/ignite-node2.xml:ro
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://127.0.0.1:8089/ignite?cmd=version" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+
 volumes:
   mysql_data:

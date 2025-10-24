@@ -1,14 +1,15 @@
 package com.pedro.sd.services;
 
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.stereotype.Service;
+
 import com.pedro.sd.models.DTO.MessageSendDTO;
 import com.pedro.sd.models.Entities.Group;
 import com.pedro.sd.models.Entities.Message;
 import com.pedro.sd.models.Entities.User;
 import com.pedro.sd.repositories.MessagesRepository;
+
 import jakarta.transaction.Transactional;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class MessagesService {
