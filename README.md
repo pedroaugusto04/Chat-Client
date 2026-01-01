@@ -41,4 +41,5 @@ Desktop chat application with a backend server. The system was designed to be sc
 - Clients **retry messages with backoff + jitter** until confirmation  
 - Clients disconnect after inactivity; missed messages are available on reconnection.
 - Horizontal scaling supported with multiple servers behind **Nginx**  
-- Kafka ensures **durable message streaming**  
+- Kafka ensures **durable message streaming**
+- **Observability** via **Prometheus** (metrics collection) and **Grafana** (dashboards and monitoring)
