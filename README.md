@@ -28,12 +28,13 @@ Desktop chat application with a backend server. The system was designed to be sc
 - Ensures **idempotency** using client-provided `idemKey`  
 
 **Client:**  
-- Desktop app (Python)  
-  - `POST /nick {user}` – set user nickname  
-  - `POST /groups {group}` – create group  
-  - `GET /groups` – list groups  
-  - `POST /chat/{groupId}/messages {message}` – post message  
-  - `GET /groups/{id}/messages?since=[cursor]&limit=N` – fetch messages
+- Desktop app (Python)
+  - Consumes API endpoints:
+    - `POST /nick {user}` – set user nickname  
+    - `POST /groups {group}` – create group  
+    - `GET /groups` – list groups  
+    - `POST /chat/{groupId}/messages {message}` – post message  
+    - `GET /groups/{id}/messages?since=[cursor]&limit=N` – fetch messages
   - **Retry mechanism** for message posting with **backoff + jitter**.  
 
 ## Fault Tolerance & Scalability
